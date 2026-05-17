@@ -144,7 +144,8 @@ export async function getHorariosConfig() {
           "Vie": { activo: true, apertura: "10:00", cierre: "18:00" },
           "Sáb": { activo: true, apertura: "10:00", cierre: "18:00" },
           "Dom": { activo: false, apertura: "10:00", cierre: "18:00" }
-        }
+        },
+        bloqueos: []
       };
     }
     return normalizeConfig(data.valor);
@@ -160,7 +161,8 @@ export async function getHorariosConfig() {
         "Vie": { activo: true, apertura: "10:00", cierre: "18:00" },
         "Sáb": { activo: true, apertura: "10:00", cierre: "18:00" },
         "Dom": { activo: false, apertura: "10:00", cierre: "18:00" }
-      }
+      },
+      bloqueos: []
     };
   }
 }
@@ -168,6 +170,7 @@ export async function getHorariosConfig() {
 // Función auxiliar para normalizar configs viejas a la estructura de un horario por día
 function normalizeConfig(rawVal) {
   const baseDuration = rawVal.duracion ?? 45;
+  const bloqueos = Array.isArray(rawVal.bloqueos) ? rawVal.bloqueos : [];
   
   // Si rawVal ya tiene el objeto de días con su apertura/cierre
   if (rawVal.dias && typeof rawVal.dias === 'object' && !Array.isArray(rawVal.dias)) {
@@ -192,7 +195,8 @@ function normalizeConfig(rawVal) {
     });
     return {
       duracion: baseDuration,
-      dias: newDias
+      dias: newDias,
+      bloqueos: bloqueos
     };
   }
   
@@ -213,7 +217,8 @@ function normalizeConfig(rawVal) {
   
   return {
     duracion: baseDuration,
-    dias: diasEstructura
+    dias: diasEstructura,
+    bloqueos: bloqueos
   };
 }
 

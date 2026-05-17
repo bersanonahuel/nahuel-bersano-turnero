@@ -74,9 +74,32 @@ export default function Booking() {
     const limite = new Date();
     limite.setHours(hCierre, mCierre, 0, 0);
     
+    // Obtener bloqueos para este día de la semana
+    const bloqueos = config.bloqueos || [];
+    const bloqueosHoy = bloqueos.filter(b => b.dia === diaNombre);
+    
     while (actual < limite) {
       const horaStr = actual.toTimeString().slice(0, 5); // "HH:MM"
-      if (!slots.includes(horaStr)) {
+      
+      const slotInicio = new Date(actual);
+      const slotFin = new Date(actual);
+      slotFin.setMinutes(slotFin.getMinutes() + duracionMinutos);
+      
+      const estaBloqueado = bloqueosHoy.some(b => {
+        if (!b.inicio || !b.fin) return false;
+        const [hBInicio, mBInicio] = b.inicio.split(':').map(Number);
+        const [hBFin, mBFin] = b.fin.split(':').map(Number);
+        
+        const bInicio = new Date(actual);
+        bInicio.setHours(hBInicio, mBInicio, 0, 0);
+        
+        const bFin = new Date(actual);
+        bFin.setHours(hBFin, mBFin, 0, 0);
+        
+        return slotInicio < bFin && slotFin > bInicio;
+      });
+      
+      if (!estaBloqueado && !slots.includes(horaStr)) {
         slots.push(horaStr);
       }
       actual.setMinutes(actual.getMinutes() + duracionMinutos);

@@ -28,7 +28,8 @@ export default function Dashboard() {
       "Vie": { activo: true, apertura: "10:00", cierre: "18:00" },
       "Sáb": { activo: true, apertura: "10:00", cierre: "18:00" },
       "Dom": { activo: false, apertura: "10:00", cierre: "18:00" }
-    }
+    },
+    bloqueos: []
   });
 
   useEffect(() => {
@@ -525,6 +526,164 @@ export default function Dashboard() {
                       </div>
                     );
                   })}
+                </div>
+              </div>
+
+              {/* Intervalos Bloqueados */}
+              <div className="input-group" style={{ marginTop: '28px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                  <label className="input-label" style={{ margin: 0, fontWeight: '600', fontSize: '1rem' }}>Descansos / Intervalos Bloqueados</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const currentBloqueos = configState.bloqueos || [];
+                      setConfigState({
+                        ...configState,
+                        bloqueos: [...currentBloqueos, { dia: 'Lun', inicio: '13:00', fin: '15:00' }]
+                      });
+                    }}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px dashed var(--border-color)',
+                      background: '#fff',
+                      color: '#111',
+                      fontSize: '0.78rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#f5f5f5'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
+                  >
+                    + Agregar Descanso
+                  </button>
+                </div>
+                
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: '-8px', marginBottom: '16px' }}>
+                  Ingresá los lapsos en los que no podés atender (por ejemplo, siesta o almuerzo) para que el turnero inhabilite automáticamente los turnos de esos horarios.
+                </p>
+
+                <div style={{ display: 'grid', gap: '10px' }}>
+                  {(!configState.bloqueos || configState.bloqueos.length === 0) && (
+                    <div style={{
+                      padding: '16px',
+                      border: '1px dashed var(--border-color)',
+                      borderRadius: 'var(--radius-md)',
+                      textAlign: 'center',
+                      color: 'var(--text-muted)',
+                      fontSize: '0.85rem',
+                      background: '#fafafa'
+                    }}>
+                      No tenés descansos programados. Estás disponible de corrido durante las horas de atención.
+                    </div>
+                  )}
+
+                  {configState.bloqueos && configState.bloqueos.map((bloqueo, idx) => (
+                    <div key={idx} style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '10px 14px',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: 'var(--radius-md)',
+                      background: '#fff',
+                      flexWrap: 'wrap',
+                      gap: '12px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <Clock size={16} style={{ color: 'var(--text-muted)' }} />
+                        <span style={{ fontSize: '0.88rem', fontWeight: '500', color: 'var(--text-muted)' }}>Día:</span>
+                        <select
+                          value={bloqueo.dia}
+                          onChange={e => {
+                            const newBloqueos = [...configState.bloqueos];
+                            newBloqueos[idx] = { ...bloqueo, dia: e.target.value };
+                            setConfigState({ ...configState, bloqueos: newBloqueos });
+                          }}
+                          style={{
+                            padding: '4px 8px',
+                            borderRadius: 'var(--radius-sm)',
+                            border: '1px solid var(--border-color)',
+                            fontSize: '0.85rem',
+                            fontFamily: 'inherit',
+                            background: '#fff',
+                            cursor: 'pointer',
+                            fontWeight: '600'
+                          }}
+                        >
+                          {['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(d => (
+                            <option key={d} value={d}>{d}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>De:</span>
+                        <input
+                          type="time"
+                          value={bloqueo.inicio}
+                          onChange={e => {
+                            const newBloqueos = [...configState.bloqueos];
+                            newBloqueos[idx] = { ...bloqueo, inicio: e.target.value };
+                            setConfigState({ ...configState, bloqueos: newBloqueos });
+                          }}
+                          style={{
+                            padding: '4px 8px',
+                            borderRadius: 'var(--radius-sm)',
+                            border: '1px solid var(--border-color)',
+                            fontSize: '0.85rem',
+                            fontFamily: 'inherit',
+                            background: '#fff',
+                            cursor: 'pointer'
+                          }}
+                        />
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>a:</span>
+                        <input
+                          type="time"
+                          value={bloqueo.fin}
+                          onChange={e => {
+                            const newBloqueos = [...configState.bloqueos];
+                            newBloqueos[idx] = { ...bloqueo, fin: e.target.value };
+                            setConfigState({ ...configState, bloqueos: newBloqueos });
+                          }}
+                          style={{
+                            padding: '4px 8px',
+                            borderRadius: 'var(--radius-sm)',
+                            border: '1px solid var(--border-color)',
+                            fontSize: '0.85rem',
+                            fontFamily: 'inherit',
+                            background: '#fff',
+                            cursor: 'pointer'
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newBloqueos = configState.bloqueos.filter((_, i) => i !== idx);
+                            setConfigState({ ...configState, bloqueos: newBloqueos });
+                          }}
+                          style={{
+                            border: 'none',
+                            background: 'none',
+                            color: 'var(--text-muted)',
+                            cursor: 'pointer',
+                            padding: '6px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: '50%',
+                            marginLeft: '4px',
+                            transition: 'all 0.15s ease'
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.background = '#fce8e6'; e.currentTarget.style.color = 'var(--danger)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+                        >
+                          <X size={15} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
               
