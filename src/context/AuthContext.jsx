@@ -59,6 +59,7 @@ export function AuthProvider({ children }) {
       name:   data.name,
       avatar: data.avatar,
       role:   data.role   ?? 'client',
+      permiso_horarios: data.permiso_horarios ?? false,
       puntos: data.puntos ?? 0,
     };
   }
@@ -81,6 +82,7 @@ export function AuthProvider({ children }) {
       name:   'Admin',
       email:  'admin@nahuel.com',
       role:   'admin',
+      permiso_horarios: true,
       puntos: null,
     };
     setUser(adminUser);

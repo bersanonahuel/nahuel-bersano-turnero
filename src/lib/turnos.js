@@ -13,7 +13,7 @@ import { supabase } from './supabase';
  * @param {number} turno.precio        - Precio en pesos
  * @returns {Object} El turno creado
  */
-export async function crearTurno({ cliente_uid, cliente_email, cliente_name, fecha, hora, servicio, precio }) {
+export async function crearTurno({ cliente_uid, cliente_email, cliente_name, fecha, hora, servicio, precio, es_fijo = false, duracion = 45 }) {
   const { data, error } = await supabase
     .from('turnos')
     .insert({
@@ -24,6 +24,8 @@ export async function crearTurno({ cliente_uid, cliente_email, cliente_name, fec
       hora,
       servicio,
       precio,
+      es_fijo,
+      duracion,
       estado: 'pendiente', // pendiente | confirmado | cancelado
     })
     .select()
@@ -116,6 +118,38 @@ export async function sumarPuntos(clienteUid, puntos = 30) {
     p_uid:    clienteUid,
     p_puntos: puntos,
   });
+
+  if (error) throw error;
+}
+
+/**
+ * Obtiene la configuración de horarios.
+ */
+export async function getHorariosConfig() {
+  const { data, error } = await supabase
+    .from('configuraciones')
+    .select('valor')
+    .eq('clave', 'horarios')
+    .maybeSingle();
+
+  if (error || !data) {
+    return {
+      apertura: '10:00',
+      cierre: '18:00',
+      duracion: 45,
+      dias: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+    };
+  }
+  return data.valor;
+}
+
+/**
+ * Guarda la configuración de horarios.
+ */
+export async function guardarHorariosConfig(config) {
+  const { error } = await supabase
+    .from('configuraciones')
+    .upsert({ clave: 'horarios', valor: config });
 
   if (error) throw error;
 }

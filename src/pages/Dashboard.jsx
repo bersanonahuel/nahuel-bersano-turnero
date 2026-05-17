@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Users, Check, X, Clock, Settings, Package, TrendingUp, Star, RefreshCw } from 'lucide-react';
+import { Calendar, Users, Check, X, Clock, Settings, Package, TrendingUp, Star, RefreshCw, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { getTurnosHoy, actualizarEstadoTurno, sumarPuntos } from '../lib/turnos';
+import { getTurnosHoy, actualizarEstadoTurno, sumarPuntos, getHorariosConfig, guardarHorariosConfig } from '../lib/turnos';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -18,17 +18,33 @@ export default function Dashboard() {
   const [loadingCli,    setLoadingCli]    = useState(true);
   const [toastMsg,      setToastMsg]      = useState('');
 
+  const [configState, setConfigState] = useState({
+    apertura: '10:00',
+    cierre: '18:00',
+    duracion: 45,
+    dias: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+  });
+
   useEffect(() => {
-    if (user?.role !== 'admin') navigate('/');
+    if (user?.role !== 'admin' && !user?.permiso_horarios) navigate('/');
   }, [user, navigate]);
 
   // ── Carga inicial ────────────────────────────────────────────────────
   useEffect(() => {
-    if (user?.role !== 'admin') return;
+    if (user?.role !== 'admin' && !user?.permiso_horarios) return;
     fetchTurnos();
-    fetchClientes();
     fetchStats();
-    fetchProducts();
+    
+    // Solo admins pueden ver catálogo de productos y clientes
+    if (user?.role === 'admin') {
+      fetchClientes();
+      fetchProducts();
+    }
+    
+    // Cargar config de horarios
+    getHorariosConfig()
+      .then(setConfigState)
+      .catch(console.error);
   }, [user]);
 
   async function fetchTurnos() {
@@ -105,7 +121,33 @@ export default function Dashboard() {
     setTimeout(() => setToastMsg(''), 3000);
   }
 
-  if (user?.role !== 'admin') return null;
+  async function handleTogglePermiso(clienteUid, currentVal) {
+    try {
+      const { error } = await supabase
+        .from('clientes')
+        .update({ permiso_horarios: !currentVal })
+        .eq('uid', clienteUid);
+
+      if (error) throw error;
+      toast(`Permisos actualizados con éxito`);
+      fetchClientes();
+    } catch (err) {
+      console.error(err);
+      toast('Error al actualizar permisos');
+    }
+  }
+
+  async function handleSaveConfig() {
+    try {
+      await guardarHorariosConfig(configState);
+      toast('✓ Configuración de horarios y duraciones guardada');
+    } catch (err) {
+      console.error(err);
+      toast('Error al guardar la configuración');
+    }
+  }
+
+  if (user?.role !== 'admin' && !user?.permiso_horarios) return null;
 
   const statCards = [
     { label: 'Cortes esta semana', value: stats.semana, icon: <TrendingUp size={22} />, color: '#3b82f6' },
@@ -115,11 +157,11 @@ export default function Dashboard() {
 
   const TABS = [
     { id: 'turnos',         label: 'Turnos de Hoy',    icon: <Clock size={15} /> },
-    { id: 'clientes',       label: 'Clientes',          icon: <Users size={15} /> },
-    { id: 'puntos',         label: 'Puntos',             icon: <Star size={15} /> },
-    { id: 'productos',      label: 'Productos',          icon: <Package size={15} /> },
+    user?.role === 'admin' && { id: 'clientes',       label: 'Clientes',          icon: <Users size={15} /> },
+    user?.role === 'admin' && { id: 'puntos',         label: 'Puntos',             icon: <Star size={15} /> },
+    user?.role === 'admin' && { id: 'productos',      label: 'Productos',          icon: <Package size={15} /> },
     { id: 'configuracion',  label: 'Configuración',      icon: <Settings size={15} /> },
-  ];
+  ].filter(Boolean);
 
   return (
     <div className="container section" style={{ position: 'relative' }}>
@@ -135,7 +177,9 @@ export default function Dashboard() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h1 style={{ fontSize: '2rem', letterSpacing: '-0.03em' }}>Panel de Control</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Nahuel Bersano — Administrador</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+            {user?.name} — {user?.role === 'admin' ? 'Administrador' : 'Colaborador (Gestor de Horarios)'}
+          </p>
         </div>
         <button className="btn-outline" style={{ padding: '8px 14px', fontSize: '0.85rem', display: 'flex', gap: '6px', alignItems: 'center' }} onClick={() => { fetchTurnos(); fetchStats(); }}>
           <RefreshCw size={15} /> Actualizar
@@ -205,7 +249,25 @@ export default function Dashboard() {
                             </span>
                           </td>
                           <td style={{ padding: '14px 0', fontSize: '0.95rem' }}>{turno.cliente_name}</td>
-                          <td style={{ padding: '14px 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>{turno.servicio}</td>
+                          <td style={{ padding: '14px 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                            <div>{turno.servicio}</div>
+                            <div style={{ fontSize: '0.75rem', color: '#888', marginTop: '2px' }}>
+                              Duración: {turno.duracion ?? 45} min
+                              {turno.es_fijo && (
+                                <span style={{
+                                  marginLeft: '8px',
+                                  padding: '2px 6px',
+                                  borderRadius: '3px',
+                                  fontSize: '0.65rem',
+                                  fontWeight: '700',
+                                  background: '#e0f2fe',
+                                  color: '#0369a1',
+                                }}>
+                                  FIJO
+                                </span>
+                              )}
+                            </div>
+                          </td>
                           <td style={{ padding: '14px 0' }}>
                             <span style={{
                               padding: '3px 10px', borderRadius: 'var(--radius-full)', fontSize: '0.75rem', fontWeight: '600',
@@ -237,24 +299,65 @@ export default function Dashboard() {
             <div>
               <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '16px' }}>Clientes registrados</h3>
               {loadingCli ? <p style={{ color: 'var(--text-muted)' }}>Cargando...</p> : (
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ textAlign: 'left', color: 'var(--text-muted)', fontSize: '0.82rem', borderBottom: '1px solid var(--border-color)' }}>
-                      <th style={{ padding: '10px 0' }}>Nombre</th>
-                      <th style={{ padding: '10px 0' }}>Email</th>
-                      <th style={{ padding: '10px 0', textAlign: 'right' }}>Puntos</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {clientes.map((c, i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                        <td style={{ padding: '14px 0', fontWeight: '500' }}>{c.name}</td>
-                        <td style={{ padding: '14px 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>{c.email}</td>
-                        <td style={{ padding: '14px 0', textAlign: 'right', fontWeight: '700' }}>★ {c.puntos ?? 0}</td>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '600px' }}>
+                    <thead>
+                      <tr style={{ textAlign: 'left', color: 'var(--text-muted)', fontSize: '0.82rem', borderBottom: '1px solid var(--border-color)' }}>
+                        <th style={{ padding: '10px 0' }}>Nombre</th>
+                        <th style={{ padding: '10px 0' }}>Email</th>
+                        <th style={{ padding: '10px 0' }}>Rol</th>
+                        <th style={{ padding: '10px 0', textAlign: 'center' }}>Permisos (Horarios)</th>
+                        <th style={{ padding: '10px 0', textAlign: 'right' }}>Puntos</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {clientes.map((c, i) => (
+                        <tr key={i} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                          <td style={{ padding: '14px 0', fontWeight: '500' }}>{c.name}</td>
+                          <td style={{ padding: '14px 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>{c.email}</td>
+                          <td style={{ padding: '14px 0', fontSize: '0.9rem' }}>
+                            <span style={{
+                              padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '600',
+                              background: c.role === 'admin' ? '#f3e8ff' : '#f3f4f6',
+                              color: c.role === 'admin' ? '#7e22ce' : '#374151'
+                            }}>
+                              {c.role === 'admin' ? 'ADMIN' : 'CLIENTE'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '14px 0', textAlign: 'center' }}>
+                            {c.role === 'admin' ? (
+                              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                                <ShieldCheck size={14} color="var(--success)" /> Administrador total
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => handleTogglePermiso(c.uid, c.permiso_horarios)}
+                                style={{
+                                  padding: '4px 10px',
+                                  borderRadius: 'var(--radius-sm)',
+                                  fontSize: '0.8rem',
+                                  fontWeight: '600',
+                                  cursor: 'pointer',
+                                  border: 'none',
+                                  background: c.permiso_horarios ? '#dcfce7' : '#fee2e2',
+                                  color: c.permiso_horarios ? '#15803d' : '#b91c1c',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  fontFamily: 'inherit'
+                                }}
+                              >
+                                {c.permiso_horarios ? <ShieldCheck size={13} /> : <ShieldAlert size={13} />}
+                                {c.permiso_horarios ? 'Con Permiso' : 'Sin Permiso'}
+                              </button>
+                            )}
+                          </td>
+                          <td style={{ padding: '14px 0', textAlign: 'right', fontWeight: '700' }}>★ {c.puntos ?? 0}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
           )}
@@ -326,27 +429,79 @@ export default function Dashboard() {
           {activeTab === 'configuracion' && (
             <div style={{ maxWidth: '480px' }}>
               <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '20px' }}>Configuración de Horarios</h3>
+              
               <div className="input-group">
-                <label className="input-label">Duración de cada turno (minutos)</label>
-                <input type="number" className="input-field" defaultValue="45" />
+                <label className="input-label">Duración base de cada turno (minutos)</label>
+                <input
+                  type="number"
+                  className="input-field"
+                  value={configState.duracion}
+                  onChange={e => setConfigState({ ...configState, duracion: parseInt(e.target.value) || 45 })}
+                />
               </div>
+              
               <div className="input-group">
                 <label className="input-label">Hora de apertura</label>
-                <input type="time" className="input-field" defaultValue="10:00" />
+                <input
+                  type="time"
+                  className="input-field"
+                  value={configState.apertura}
+                  onChange={e => setConfigState({ ...configState, apertura: e.target.value })}
+                />
               </div>
+              
               <div className="input-group">
                 <label className="input-label">Hora de cierre</label>
-                <input type="time" className="input-field" defaultValue="18:00" />
+                <input
+                  type="time"
+                  className="input-field"
+                  value={configState.cierre}
+                  onChange={e => setConfigState({ ...configState, cierre: e.target.value })}
+                />
               </div>
+              
               <div className="input-group">
-                <label className="input-label">Días de trabajo</label>
+                <label className="input-label">Días de atención</label>
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
-                  {['Lun','Mar','Mié','Jue','Vie','Sáb'].map(d => (
-                    <button key={d} style={{ padding: '6px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', background: '#fff', fontFamily: 'inherit', cursor: 'pointer', fontSize: '0.85rem' }}>{d}</button>
-                  ))}
+                  {['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(d => {
+                    const active = configState.dias.includes(d);
+                    return (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => {
+                          const newDias = active
+                            ? configState.dias.filter(x => x !== d)
+                            : [...configState.dias, d];
+                          setConfigState({ ...configState, dias: newDias });
+                        }}
+                        style={{
+                          padding: '8px 16px',
+                          borderRadius: 'var(--radius-sm)',
+                          border: '1px solid var(--border-color)',
+                          background: active ? '#111' : '#fff',
+                          color: active ? '#fff' : '#111',
+                          fontWeight: '600',
+                          fontFamily: 'inherit',
+                          cursor: 'pointer',
+                          fontSize: '0.85rem',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        {d}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-              <button className="btn-primary">Guardar cambios</button>
+              
+              <button
+                className="btn-primary"
+                onClick={handleSaveConfig}
+                style={{ marginTop: '24px', width: '100%', justifyContent: 'center' }}
+              >
+                Guardar cambios
+              </button>
             </div>
           )}
 

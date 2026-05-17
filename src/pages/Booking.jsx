@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { Calendar, Clock, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { crearTurno, getHorasOcupadas } from '../lib/turnos';
+import { crearTurno, getHorasOcupadas, getHorariosConfig } from '../lib/turnos';
 import { enviarConfirmacion } from '../lib/email';
 
 const SERVICIOS = [
   { id: 'corte',       name: 'Corte de Pelo',  precio: 8000,  duracion: '45 min' },
   { id: 'corte_barba', name: 'Corte + Barba',  precio: 12000, duracion: '60 min' },
 ];
-
-const HORAS_BASE = ['10:00','10:45','11:30','12:15','14:00','14:45','15:30','16:15','17:00','17:45'];
 
 export default function Booking() {
   const { user, loginWithGoogle } = useAuth();
@@ -25,14 +23,74 @@ export default function Booking() {
   const [loadingHoras, setLoadingH] = useState(false);
   const [error, setError]           = useState('');
   const [confirmado, setConfirmado] = useState(false);
+  const [esFijo, setEsFijo]         = useState(false);
+  const [config, setConfig]         = useState({
+    apertura: '10:00',
+    cierre: '18:00',
+    duracion: 45,
+    dias: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+  });
+
+  // Cargar configuración de horarios al iniciar
+  useEffect(() => {
+    getHorariosConfig()
+      .then(setConfig)
+      .catch(err => console.error('Error al cargar config de horarios:', err));
+  }, []);
 
   // Hoy como mínimo para el datepicker
   const hoy = new Date().toISOString().split('T')[0];
+
+  // ── Generar slots de horarios dinámicos ──────────────────────────────
+  const generarHorarios = () => {
+    const slots = [];
+    if (!config.apertura || !config.cierre) return slots;
+    const [hApertura, mApertura] = config.apertura.split(':').map(Number);
+    const [hCierre, mCierre] = config.cierre.split(':').map(Number);
+    
+    // Parsear duración del servicio (ej. "45 min" -> 45)
+    let duracionMinutos = config.duracion;
+    if (servicio && servicio.duracion) {
+      const match = servicio.duracion.match(/(\d+)/);
+      if (match) {
+        duracionMinutos = parseInt(match[1], 10);
+      }
+    }
+    
+    let actual = new Date();
+    actual.setHours(hApertura, mApertura, 0, 0);
+    
+    const limite = new Date();
+    limite.setHours(hCierre, mCierre, 0, 0);
+    
+    while (actual < limite) {
+      const horaStr = actual.toTimeString().slice(0, 5); // "HH:MM"
+      slots.push(horaStr);
+      actual.setMinutes(actual.getMinutes() + duracionMinutos);
+    }
+    
+    return slots;
+  };
+
+  // Validar si el día de la semana es laboral
+  const diasSemanaMapa = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+  const esDiaLaboral = (fechaStr) => {
+    if (!fechaStr) return true;
+    const dateObj = new Date(fechaStr + 'T12:00:00'); // Evitar problemas de zona horaria
+    const diaNombre = diasSemanaMapa[dateObj.getDay()];
+    return config.dias.includes(diaNombre);
+  };
 
   // Cargar horas ocupadas cuando cambia la fecha
   useEffect(() => {
     if (!selectedDate) return;
     setTime('');
+    
+    if (!esDiaLaboral(selectedDate)) {
+      setOcupadas([]);
+      return;
+    }
+
     setLoadingH(true);
     getHorasOcupadas(selectedDate)
       .then(setOcupadas)
@@ -66,7 +124,7 @@ export default function Booking() {
         <CheckCircle size={64} color="var(--success)" style={{ marginBottom: '24px' }} />
         <h2 style={{ fontSize: '2rem', marginBottom: '8px', letterSpacing: '-0.03em' }}>¡Turno reservado!</h2>
         <p style={{ color: 'var(--text-muted)', marginBottom: '8px' }}>
-          {servicio.name} — {selectedDate} a las {selectedTime}
+          {servicio.name} {esFijo && ' (Turno Fijo Recurrente)'} — {selectedDate} a las {selectedTime}
         </p>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '32px' }}>
           Te enviamos una confirmación a <strong>{user.email}</strong>. Recibirás un recordatorio 30 min antes.
@@ -80,6 +138,11 @@ export default function Booking() {
   const handleConfirmar = async () => {
     setLoading(true);
     setError('');
+
+    // Parsear duración del servicio
+    const match = servicio.duracion.match(/(\d+)/);
+    const duracionMinutos = match ? parseInt(match[1], 10) : config.duracion;
+
     try {
       await crearTurno({
         cliente_uid:   user.uid,
@@ -89,6 +152,8 @@ export default function Booking() {
         hora:          selectedTime,
         servicio:      servicio.name,
         precio:        servicio.precio,
+        es_fijo:       esFijo,
+        duracion:      duracionMinutos,
       });
 
       // Email de confirmación
@@ -98,7 +163,7 @@ export default function Booking() {
           to_name:  user.name,
           fecha:    selectedDate,
           hora:     selectedTime,
-          servicio: servicio.name,
+          servicio: `${servicio.name}${esFijo ? ' (Turno Fijo Semanal)' : ''}`,
         });
       } catch {
         // Email falla silenciosamente (EmailJS no configurado aún)
@@ -193,43 +258,82 @@ export default function Booking() {
               />
             </div>
 
-            {selectedDate && (
+            {selectedDate && !esDiaLaboral(selectedDate) && (
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', color: 'var(--danger)', marginTop: '12px', fontSize: '0.9rem' }}>
+                <AlertCircle size={16} />
+                La barbería no abre este día. Días de atención: {config.dias.join(', ')}.
+              </div>
+            )}
+
+            {selectedDate && esDiaLaboral(selectedDate) && (
               <div style={{ marginTop: '8px' }}>
                 <label className="input-label" style={{ marginBottom: '12px', display: 'block' }}>
                   <Clock size={15} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '6px' }} />
-                  Horarios disponibles
+                  Horarios disponibles ({servicio.duracion})
                 </label>
                 {loadingHoras ? (
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Cargando horarios...</p>
                 ) : (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-                    {HORAS_BASE.map(hora => {
-                      const ocupada = horasOcupadas.includes(hora);
-                      const selec   = selectedTime === hora;
-                      return (
-                        <button
-                          key={hora}
-                          disabled={ocupada}
-                          onClick={() => setTime(hora)}
-                          style={{
-                            padding: '10px 18px',
-                            borderRadius: 'var(--radius-md)',
-                            border: selec ? 'none' : '1px solid var(--border-color)',
-                            background: selec ? '#111' : ocupada ? '#f3f4f6' : '#fff',
-                            color: selec ? '#fff' : ocupada ? '#ccc' : '#111',
-                            fontWeight: '500',
-                            cursor: ocupada ? 'not-allowed' : 'pointer',
-                            fontSize: '0.9rem',
-                            textDecoration: ocupada ? 'line-through' : 'none',
-                            transition: 'all 0.15s ease',
-                            fontFamily: 'inherit',
-                          }}
-                        >
-                          {hora}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                      {generarHorarios().map(hora => {
+                        const ocupada = horasOcupadas.includes(hora);
+                        const selec   = selectedTime === hora;
+                        return (
+                          <button
+                            key={hora}
+                            disabled={ocupada}
+                            onClick={() => setTime(hora)}
+                            style={{
+                              padding: '10px 18px',
+                              borderRadius: 'var(--radius-md)',
+                              border: selec ? 'none' : '1px solid var(--border-color)',
+                              background: selec ? '#111' : ocupada ? '#f3f4f6' : '#fff',
+                              color: selec ? '#fff' : ocupada ? '#ccc' : '#111',
+                              fontWeight: '500',
+                              cursor: ocupada ? 'not-allowed' : 'pointer',
+                              fontSize: '0.9rem',
+                              textDecoration: ocupada ? 'line-through' : 'none',
+                              transition: 'all 0.15s ease',
+                              fontFamily: 'inherit',
+                            }}
+                          >
+                            {hora}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {selectedTime && (
+                      <div style={{
+                        marginTop: '24px',
+                        padding: '18px',
+                        border: `1px solid ${esFijo ? '#111' : 'var(--border-color)'}`,
+                        borderRadius: 'var(--radius-md)',
+                        background: esFijo ? '#f9f9f9' : '#fff',
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '12px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        boxShadow: esFijo ? 'var(--shadow-subtle)' : 'none'
+                      }} onClick={() => setEsFijo(!esFijo)}>
+                        <input
+                          type="checkbox"
+                          checked={esFijo}
+                          onChange={(e) => setEsFijo(e.target.checked)}
+                          style={{ marginTop: '4px', cursor: 'pointer', accentColor: '#111' }}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <div>
+                          <p style={{ fontWeight: '600', fontSize: '0.95rem', margin: 0, color: '#111' }}>¿Reservar como Turno Fijo?</p>
+                          <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', margin: '4px 0 0 0', lineHeight: '1.4' }}>
+                            Reservá este mismo día ({new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-AR', { weekday: 'long' })}) y horario ({selectedTime}) de forma recurrente todas las semanas.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -245,6 +349,8 @@ export default function Booking() {
                 ['Servicio', servicio.name],
                 ['Fecha',    selectedDate],
                 ['Hora',     selectedTime],
+                ['Duración', servicio.duracion],
+                ['Tipo de Turno', esFijo ? 'Fijo (Semanal Recurrente)' : 'Normal (Una sola vez)'],
                 ['Total',    `$${servicio.precio.toLocaleString('es-AR')}`],
                 ['Email',    user.email],
               ].map(([key, val]) => (
@@ -258,9 +364,11 @@ export default function Booking() {
             {/* Disclaimer */}
             <div style={{ background: '#f9f9f9', borderLeft: '3px solid #111', padding: '14px 16px', borderRadius: '0 var(--radius-sm) var(--radius-sm) 0', marginBottom: '20px' }}>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.7' }}>
-                Al confirmar te comprometés a presentarte <strong style={{ color: '#111' }}>10 minutos antes</strong>. La cancelación con
-                menos de <strong style={{ color: '#111' }}>2 horas de anticipación</strong> requiere abonar el servicio completo.
-                Recibirás un recordatorio automático por email <strong style={{ color: '#111' }}>30 min antes</strong>.
+                {esFijo ? (
+                  <>Al confirmar, reservás este espacio <strong style={{ color: '#111' }}>semanalmente</strong>. Si necesitás cancelar alguna semana en particular, recordá avisar con al menos 2 horas de anticipación.</>
+                ) : (
+                  <>Al confirmar te comprometés a presentarte <strong style={{ color: '#111' }}>10 minutos antes</strong>. La cancelación con menos de <strong style={{ color: '#111' }}>2 horas de anticipación</strong> requiere abonar el servicio completo.</>
+                )}
               </p>
             </div>
 
@@ -282,8 +390,8 @@ export default function Booking() {
           {step === 2 && (
             <button
               className="btn-primary"
-              disabled={!selectedDate || !selectedTime}
-              style={{ opacity: (!selectedDate || !selectedTime) ? 0.45 : 1 }}
+              disabled={!selectedDate || !selectedTime || !esDiaLaboral(selectedDate)}
+              style={{ opacity: (!selectedDate || !selectedTime || !esDiaLaboral(selectedDate)) ? 0.45 : 1 }}
               onClick={() => setStep(3)}
             >
               Siguiente →

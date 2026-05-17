@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS clientes (
   name      TEXT,
   avatar    TEXT,
   role      TEXT DEFAULT 'client',       -- 'client' | 'admin'
+  permiso_horarios BOOLEAN DEFAULT FALSE, -- Si tiene permiso para cambiar horarios y duraciones
   puntos    INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -24,6 +25,8 @@ CREATE TABLE IF NOT EXISTS turnos (
   fecha         DATE NOT NULL,
   hora          TIME NOT NULL,
   precio        INTEGER NOT NULL,
+  es_fijo       BOOLEAN DEFAULT FALSE,     -- Si es un turno fijo / recurrente semanal
+  duracion      INTEGER DEFAULT 45,        -- Duración en minutos (cambiable)
   estado        TEXT DEFAULT 'pendiente', -- 'pendiente' | 'confirmado' | 'cancelado'
   created_at    TIMESTAMPTZ DEFAULT NOW()
 );
@@ -49,6 +52,18 @@ CREATE TABLE IF NOT EXISTS promociones_puntos (
   activa          BOOLEAN DEFAULT TRUE,
   created_at      TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- ── Tabla: configuraciones ────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS configuraciones (
+  clave       TEXT PRIMARY KEY,
+  valor       JSONB NOT NULL,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Configuración por defecto para horarios de turnos
+INSERT INTO configuraciones (clave, valor) VALUES
+  ('horarios', '{"apertura": "10:00", "cierre": "18:00", "duracion": 45, "dias": ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"]}'::jsonb)
+ON CONFLICT (clave) DO NOTHING;
 
 -- ── Función: sumar_puntos ─────────────────────────────────────────────
 -- Llamada con supabase.rpc('sumar_puntos', { p_uid, p_puntos })

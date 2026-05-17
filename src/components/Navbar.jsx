@@ -23,7 +23,7 @@ export default function Navbar() {
         <div className="nav-links nav-desktop">
           <Link to="/" className={`nav-link ${isActive('/')}`}>Inicio</Link>
           <Link to="/products" className={`nav-link ${isActive('/products')}`}>Productos</Link>
-          {user?.role === 'admin' && (
+          {(user?.role === 'admin' || user?.permiso_horarios) && (
             <Link to="/dashboard" className={`nav-link ${isActive('/dashboard')}`}>Panel Admin</Link>
           )}
         </div>
@@ -68,7 +68,7 @@ export default function Navbar() {
         <div className="nav-mobile-drawer">
           <Link to="/" className="nav-mobile-link" onClick={closeMobile}>Inicio</Link>
           <Link to="/products" className="nav-mobile-link" onClick={closeMobile}>Productos</Link>
-          {user?.role === 'admin' && (
+          {(user?.role === 'admin' || user?.permiso_horarios) && (
             <Link to="/dashboard" className="nav-mobile-link" onClick={closeMobile}>Panel Admin</Link>
           )}
           <div style={{ borderTop: '1px solid var(--border-color)', marginTop: '8px', paddingTop: '16px' }}>
