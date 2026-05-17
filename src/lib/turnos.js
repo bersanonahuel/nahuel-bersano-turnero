@@ -137,13 +137,13 @@ export async function getHorariosConfig() {
       return {
         duracion: 45,
         dias: {
-          "Lun": { activo: true, apertura: "10:00", cierre: "18:00" },
-          "Mar": { activo: true, apertura: "10:00", cierre: "18:00" },
-          "Mié": { activo: true, apertura: "10:00", cierre: "18:00" },
-          "Jue": { activo: true, apertura: "10:00", cierre: "18:00" },
-          "Vie": { activo: true, apertura: "10:00", cierre: "18:00" },
-          "Sáb": { activo: true, apertura: "10:00", cierre: "18:00" },
-          "Dom": { activo: false, apertura: "10:00", cierre: "18:00" }
+          "Lun": { activo: true, intervalos: [{ apertura: "10:00", cierre: "18:00" }] },
+          "Mar": { activo: true, intervalos: [{ apertura: "10:00", cierre: "18:00" }] },
+          "Mié": { activo: true, intervalos: [{ apertura: "10:00", cierre: "18:00" }] },
+          "Jue": { activo: true, intervalos: [{ apertura: "10:00", cierre: "18:00" }] },
+          "Vie": { activo: true, intervalos: [{ apertura: "10:00", cierre: "18:00" }] },
+          "Sáb": { activo: true, intervalos: [{ apertura: "10:00", cierre: "18:00" }] },
+          "Dom": { activo: false, intervalos: [] }
         }
       };
     }
@@ -153,27 +153,44 @@ export async function getHorariosConfig() {
     return {
       duracion: 45,
       dias: {
-        "Lun": { activo: true, apertura: "10:00", cierre: "18:00" },
-        "Mar": { activo: true, apertura: "10:00", cierre: "18:00" },
-        "Mié": { activo: true, apertura: "10:00", cierre: "18:00" },
-        "Jue": { activo: true, apertura: "10:00", cierre: "18:00" },
-        "Vie": { activo: true, apertura: "10:00", cierre: "18:00" },
-        "Sáb": { activo: true, apertura: "10:00", cierre: "18:00" },
-        "Dom": { activo: false, apertura: "10:00", cierre: "18:00" }
+        "Lun": { activo: true, intervalos: [{ apertura: "10:00", cierre: "18:00" }] },
+        "Mar": { activo: true, intervalos: [{ apertura: "10:00", cierre: "18:00" }] },
+        "Mié": { activo: true, intervalos: [{ apertura: "10:00", cierre: "18:00" }] },
+        "Jue": { activo: true, intervalos: [{ apertura: "10:00", cierre: "18:00" }] },
+        "Vie": { activo: true, intervalos: [{ apertura: "10:00", cierre: "18:00" }] },
+        "Sáb": { activo: true, intervalos: [{ apertura: "10:00", cierre: "18:00" }] },
+        "Dom": { activo: false, intervalos: [] }
       }
     };
   }
 }
 
-// Función auxiliar para normalizar configs viejas a la nueva estructura de días separados
+// Función auxiliar para normalizar configs viejas a la nueva estructura de intervalos por día
 function normalizeConfig(rawVal) {
   const baseDuration = rawVal.duracion ?? 45;
   
-  // Si rawVal ya tiene el objeto de días con su apertura/cierre, lo dejamos tal cual
+  // Si rawVal ya tiene el objeto de días con su apertura/cierre
   if (rawVal.dias && typeof rawVal.dias === 'object' && !Array.isArray(rawVal.dias)) {
+    const newDias = {};
+    Object.keys(rawVal.dias).forEach(d => {
+      const dayData = rawVal.dias[d];
+      
+      // Si ya viene con formato de intervalos, lo dejamos
+      if (dayData.intervalos && Array.isArray(dayData.intervalos)) {
+        newDias[d] = dayData;
+      } else {
+        // Si venía con apertura/cierre simple, lo convertimos a un único intervalo
+        newDias[d] = {
+          activo: dayData.activo ?? false,
+          intervalos: dayData.activo 
+            ? [{ apertura: dayData.apertura ?? "10:00", cierre: dayData.cierre ?? "18:00" }]
+            : []
+        };
+      }
+    });
     return {
       duracion: baseDuration,
-      dias: rawVal.dias
+      dias: newDias
     };
   }
   
@@ -184,10 +201,12 @@ function normalizeConfig(rawVal) {
   
   const diasEstructura = {};
   ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].forEach(d => {
+    const activo = activeDaysArray.includes(d);
     diasEstructura[d] = {
-      activo: activeDaysArray.includes(d),
-      apertura: globalApertura,
-      cierre: globalCierre
+      activo: activo,
+      intervalos: activo 
+        ? [{ apertura: globalApertura, cierre: globalCierre }]
+        : []
     };
   });
   

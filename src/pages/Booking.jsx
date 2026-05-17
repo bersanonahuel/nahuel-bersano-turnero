@@ -51,22 +51,8 @@ export default function Booking() {
     const dateObj = new Date(selectedDate + 'T12:00:00');
     const diaNombre = diasSemanaMapa[dateObj.getDay()];
     
-    let apertura = "10:00";
-    let cierre = "18:00";
-    
-    if (config.dias && typeof config.dias === 'object' && !Array.isArray(config.dias)) {
-      const diaConfig = config.dias[diaNombre];
-      if (!diaConfig || !diaConfig.activo) return slots;
-      apertura = diaConfig.apertura;
-      cierre = diaConfig.cierre;
-    } else {
-      // Fallback viejo
-      apertura = config.apertura || "10:00";
-      cierre = config.cierre || "18:00";
-    }
-    
-    const [hApertura, mApertura] = apertura.split(':').map(Number);
-    const [hCierre, mCierre] = cierre.split(':').map(Number);
+    const diaConfig = config.dias[diaNombre];
+    if (!diaConfig || !diaConfig.activo) return slots;
     
     // Parsear duración del servicio (ej. "45 min" -> 45)
     let duracionMinutos = config.duracion || 45;
@@ -77,18 +63,31 @@ export default function Booking() {
       }
     }
     
-    let actual = new Date();
-    actual.setHours(hApertura, mApertura, 0, 0);
+    // Obtener los intervalos
+    const intervalos = diaConfig.intervalos || [];
     
-    const limite = new Date();
-    limite.setHours(hCierre, mCierre, 0, 0);
+    intervalos.forEach(interval => {
+      if (!interval.apertura || !interval.cierre) return;
+      const [hApertura, mApertura] = interval.apertura.split(':').map(Number);
+      const [hCierre, mCierre] = interval.cierre.split(':').map(Number);
+      
+      let actual = new Date();
+      actual.setHours(hApertura, mApertura, 0, 0);
+      
+      const limite = new Date();
+      limite.setHours(hCierre, mCierre, 0, 0);
+      
+      while (actual < limite) {
+        const horaStr = actual.toTimeString().slice(0, 5); // "HH:MM"
+        if (!slots.includes(horaStr)) {
+          slots.push(horaStr);
+        }
+        actual.setMinutes(actual.getMinutes() + duracionMinutos);
+      }
+    });
     
-    while (actual < limite) {
-      const horaStr = actual.toTimeString().slice(0, 5); // "HH:MM"
-      slots.push(horaStr);
-      actual.setMinutes(actual.getMinutes() + duracionMinutos);
-    }
-    
+    // Ordenar cronológicamente
+    slots.sort();
     return slots;
   };
 

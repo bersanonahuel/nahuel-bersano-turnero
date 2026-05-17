@@ -21,13 +21,13 @@ export default function Dashboard() {
   const [configState, setConfigState] = useState({
     duracion: 45,
     dias: {
-      "Lun": { activo: true, apertura: "10:00", cierre: "18:00" },
-      "Mar": { activo: true, apertura: "10:00", cierre: "18:00" },
-      "Mié": { activo: true, apertura: "10:00", cierre: "18:00" },
-      "Jue": { activo: true, apertura: "10:00", cierre: "18:00" },
-      "Vie": { activo: true, apertura: "10:00", cierre: "18:00" },
-      "Sáb": { activo: true, apertura: "10:00", cierre: "18:00" },
-      "Dom": { activo: false, apertura: "10:00", cierre: "18:00" }
+      "Lun": { activo: true, intervalos: [{ apertura: "10:00", cierre: "18:00" }] },
+      "Mar": { activo: true, intervalos: [{ apertura: "10:00", cierre: "18:00" }] },
+      "Mié": { activo: true, intervalos: [{ apertura: "10:00", cierre: "18:00" }] },
+      "Jue": { activo: true, intervalos: [{ apertura: "10:00", cierre: "18:00" }] },
+      "Vie": { activo: true, intervalos: [{ apertura: "10:00", cierre: "18:00" }] },
+      "Sáb": { activo: true, intervalos: [{ apertura: "10:00", cierre: "18:00" }] },
+      "Dom": { activo: false, intervalos: [] }
     }
   });
 
@@ -447,81 +447,168 @@ export default function Dashboard() {
               </div>
 
               <div className="input-group" style={{ marginTop: '24px' }}>
-                <label className="input-label" style={{ marginBottom: '14px', display: 'block', fontWeight: '600' }}>Horarios por Día de Atención</label>
-                <div style={{ display: 'grid', gap: '12px' }}>
+                <label className="input-label" style={{ marginBottom: '16px', display: 'block', fontWeight: '600', fontSize: '1.05rem' }}>Horarios por Día de Atención</label>
+                <div style={{ display: 'grid', gap: '16px' }}>
                   {['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(d => {
-                    const dayData = configState.dias?.[d] || { activo: false, apertura: '10:00', cierre: '18:00' };
+                    const dayData = configState.dias?.[d] || { activo: false, intervalos: [] };
+                    const active = dayData.activo;
+                    const intervalos = dayData.intervalos || [];
+
                     return (
                       <div key={d} style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '12px 16px',
+                        padding: '16px',
                         border: '1px solid var(--border-color)',
                         borderRadius: 'var(--radius-md)',
-                        background: dayData.activo ? '#fff' : '#f9f9f9',
-                        transition: 'all 0.15s ease',
-                        opacity: dayData.activo ? 1 : 0.7,
-                        flexWrap: 'wrap',
-                        gap: '12px'
+                        background: active ? '#fff' : '#f9f9f9',
+                        transition: 'all 0.2s ease',
+                        boxShadow: active ? 'var(--shadow-subtle)' : 'none'
                       }}>
-                        {/* Checkbox + Day Label */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <input
-                            type="checkbox"
-                            checked={dayData.activo}
-                            onChange={e => {
-                              const newDias = { ...configState.dias };
-                              newDias[d] = { ...dayData, activo: e.target.checked };
-                              setConfigState({ ...configState, dias: newDias });
-                            }}
-                            style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#111' }}
-                          />
-                          <span style={{ fontWeight: '600', fontSize: '0.95rem', minWidth: '36px' }}>{d}</span>
+                        {/* Day Header */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: intervalos.length > 0 && active ? '16px' : '0' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <input
+                              type="checkbox"
+                              checked={active}
+                              onChange={e => {
+                                const newDias = { ...configState.dias };
+                                newDias[d] = { 
+                                  ...dayData, 
+                                  activo: e.target.checked,
+                                  intervalos: e.target.checked && dayData.intervalos.length === 0 
+                                    ? [{ apertura: '10:00', cierre: '18:00' }]
+                                    : dayData.intervalos
+                                };
+                                setConfigState({ ...configState, dias: newDias });
+                              }}
+                              style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#111' }}
+                            />
+                            <span style={{ fontWeight: '700', fontSize: '1rem' }}>{d}</span>
+                          </div>
+                          
+                          {active && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newDias = { ...configState.dias };
+                                newDias[d] = {
+                                  ...dayData,
+                                  intervalos: [...intervalos, { apertura: '14:00', cierre: '18:00' }]
+                                };
+                                setConfigState({ ...configState, dias: newDias });
+                              }}
+                              style={{
+                                padding: '4px 10px',
+                                borderRadius: 'var(--radius-sm)',
+                                border: '1px dashed var(--border-color)',
+                                background: '#fff',
+                                color: '#111',
+                                fontSize: '0.78rem',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease'
+                              }}
+                              onMouseEnter={e => { e.currentTarget.style.background = '#f5f5f5'; }}
+                              onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
+                            >
+                              + Agregar Turno/Intervalo
+                            </button>
+                          )}
                         </div>
 
-                        {/* Time pickers (only relevant if active) */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <input
-                            type="time"
-                            disabled={!dayData.activo}
-                            value={dayData.apertura}
-                            onChange={e => {
-                              const newDias = { ...configState.dias };
-                              newDias[d] = { ...dayData, apertura: e.target.value };
-                              setConfigState({ ...configState, dias: newDias });
-                            }}
-                            style={{
-                              padding: '6px 10px',
-                              borderRadius: 'var(--radius-sm)',
-                              border: '1px solid var(--border-color)',
-                              fontSize: '0.85rem',
-                              fontFamily: 'inherit',
-                              background: dayData.activo ? '#fff' : '#eee',
-                              cursor: dayData.activo ? 'pointer' : 'not-allowed'
-                            }}
-                          />
-                          <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>a</span>
-                          <input
-                            type="time"
-                            disabled={!dayData.activo}
-                            value={dayData.cierre}
-                            onChange={e => {
-                              const newDias = { ...configState.dias };
-                              newDias[d] = { ...dayData, cierre: e.target.value };
-                              setConfigState({ ...configState, dias: newDias });
-                            }}
-                            style={{
-                              padding: '6px 10px',
-                              borderRadius: 'var(--radius-sm)',
-                              border: '1px solid var(--border-color)',
-                              fontSize: '0.85rem',
-                              fontFamily: 'inherit',
-                              background: dayData.activo ? '#fff' : '#eee',
-                              cursor: dayData.activo ? 'pointer' : 'not-allowed'
-                            }}
-                          />
-                        </div>
+                        {/* List of Intervals */}
+                        {active && (
+                          <div style={{ display: 'grid', gap: '10px' }}>
+                            {intervalos.length === 0 && (
+                              <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', margin: '0', fontStyle: 'italic' }}>
+                                Sin horarios definidos. Agrega un intervalo para habilitar turnos este día.
+                              </p>
+                            )}
+                            {intervalos.map((interval, idx) => (
+                              <div key={idx} style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '10px',
+                                background: '#fcfcfc',
+                                border: '1px solid var(--border-color)',
+                                borderRadius: 'var(--radius-sm)',
+                                padding: '8px 12px',
+                                transition: 'all 0.2s ease'
+                              }}>
+                                <Clock size={14} style={{ color: 'var(--text-muted)' }} />
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
+                                  <input
+                                    type="time"
+                                    value={interval.apertura}
+                                    onChange={e => {
+                                      const newDias = { ...configState.dias };
+                                      const newIntervals = [...intervalos];
+                                      newIntervals[idx] = { ...interval, apertura: e.target.value };
+                                      newDias[d] = { ...dayData, intervalos: newIntervals };
+                                      setConfigState({ ...configState, dias: newDias });
+                                    }}
+                                    style={{
+                                      padding: '4px 8px',
+                                      borderRadius: 'var(--radius-sm)',
+                                      border: '1px solid var(--border-color)',
+                                      fontSize: '0.85rem',
+                                      fontFamily: 'inherit',
+                                      background: '#fff',
+                                      cursor: 'pointer'
+                                    }}
+                                  />
+                                  <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>a</span>
+                                  <input
+                                    type="time"
+                                    value={interval.cierre}
+                                    onChange={e => {
+                                      const newDias = { ...configState.dias };
+                                      const newIntervals = [...intervalos];
+                                      newIntervals[idx] = { ...interval, cierre: e.target.value };
+                                      newDias[d] = { ...dayData, intervalos: newIntervals };
+                                      setConfigState({ ...configState, dias: newDias });
+                                    }}
+                                    style={{
+                                      padding: '4px 8px',
+                                      borderRadius: 'var(--radius-sm)',
+                                      border: '1px solid var(--border-color)',
+                                      fontSize: '0.85rem',
+                                      fontFamily: 'inherit',
+                                      background: '#fff',
+                                      cursor: 'pointer'
+                                    }}
+                                  />
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newDias = { ...configState.dias };
+                                    newDias[d] = {
+                                      ...dayData,
+                                      intervalos: intervalos.filter((_, i) => i !== idx)
+                                    };
+                                    setConfigState({ ...configState, dias: newDias });
+                                  }}
+                                  style={{
+                                    border: 'none',
+                                    background: 'none',
+                                    color: 'var(--text-muted)',
+                                    cursor: 'pointer',
+                                    padding: '4px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    borderRadius: '50%',
+                                    transition: 'all 0.15s ease'
+                                  }}
+                                  onMouseEnter={e => { e.currentTarget.style.background = '#fce8e6'; e.currentTarget.style.color = 'var(--danger)'; }}
+                                  onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+                                >
+                                  <X size={14} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
