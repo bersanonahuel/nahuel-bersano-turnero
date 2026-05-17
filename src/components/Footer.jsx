@@ -23,19 +23,12 @@ export default function Footer() {
           <h4 style={{ marginBottom: '16px' }}>Contacto</h4>
           <ul style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <li style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-              <MapPin size={16} /> Av. Falsa 123, Ciudad
+              <MapPin size={16} /> Sarmiento 1110 5D
             </li>
             <li style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-              <Phone size={16} /> +54 11 1234-5678
+              <Phone size={16} /> 3472436713
             </li>
           </ul>
-        </div>
-        <div>
-          <h4 style={{ marginBottom: '16px' }}>Síguenos</h4>
-          <div style={{ display: 'flex', gap: '16px' }}>
-            <a href="#" style={{ color: 'var(--text-muted)' }}><Link2 size={24} /></a>
-            <a href="#" style={{ color: 'var(--text-muted)' }}><Link2 size={24} /></a>
-          </div>
         </div>
       </div>
       <div style={{ textAlign: 'center', marginTop: '40px', padding: '20px 0', borderTop: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
