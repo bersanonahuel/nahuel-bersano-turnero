@@ -53,6 +53,12 @@ export default function Booking() {
     const diaConfig = config.dias[diaNombre];
     if (!diaConfig || !diaConfig.activo) return slots;
     
+    const apertura = diaConfig.apertura || "10:00";
+    const cierre = diaConfig.cierre || "18:00";
+    
+    const [hApertura, mApertura] = apertura.split(':').map(Number);
+    const [hCierre, mCierre] = cierre.split(':').map(Number);
+    
     // Parsear duración del servicio (ej. "45 min" -> 45)
     let duracionMinutos = config.duracion || 45;
     if (servicio && servicio.duracion) {
@@ -62,31 +68,20 @@ export default function Booking() {
       }
     }
     
-    // Obtener los intervalos
-    const intervalos = diaConfig.intervalos || [];
+    let actual = new Date();
+    actual.setHours(hApertura, mApertura, 0, 0);
     
-    intervalos.forEach(interval => {
-      if (!interval.apertura || !interval.cierre) return;
-      const [hApertura, mApertura] = interval.apertura.split(':').map(Number);
-      const [hCierre, mCierre] = interval.cierre.split(':').map(Number);
-      
-      let actual = new Date();
-      actual.setHours(hApertura, mApertura, 0, 0);
-      
-      const limite = new Date();
-      limite.setHours(hCierre, mCierre, 0, 0);
-      
-      while (actual < limite) {
-        const horaStr = actual.toTimeString().slice(0, 5); // "HH:MM"
-        if (!slots.includes(horaStr)) {
-          slots.push(horaStr);
-        }
-        actual.setMinutes(actual.getMinutes() + duracionMinutos);
+    const limite = new Date();
+    limite.setHours(hCierre, mCierre, 0, 0);
+    
+    while (actual < limite) {
+      const horaStr = actual.toTimeString().slice(0, 5); // "HH:MM"
+      if (!slots.includes(horaStr)) {
+        slots.push(horaStr);
       }
-    });
+      actual.setMinutes(actual.getMinutes() + duracionMinutos);
+    }
     
-    // Ordenar cronológicamente
-    slots.sort();
     return slots;
   };
 

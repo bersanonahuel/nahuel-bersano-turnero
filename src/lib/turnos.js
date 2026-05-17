@@ -137,13 +137,13 @@ export async function getHorariosConfig() {
       return {
         duracion: 45,
         dias: {
-          "Lun": { activo: true, intervalos: [{ apertura: "10:00", cierre: "18:00" }] },
-          "Mar": { activo: true, intervalos: [{ apertura: "10:00", cierre: "18:00" }] },
-          "Mié": { activo: true, intervalos: [{ apertura: "10:00", cierre: "18:00" }] },
-          "Jue": { activo: true, intervalos: [{ apertura: "10:00", cierre: "18:00" }] },
-          "Vie": { activo: true, intervalos: [{ apertura: "10:00", cierre: "18:00" }] },
-          "Sáb": { activo: true, intervalos: [{ apertura: "10:00", cierre: "18:00" }] },
-          "Dom": { activo: false, intervalos: [] }
+          "Lun": { activo: true, apertura: "10:00", cierre: "18:00" },
+          "Mar": { activo: true, apertura: "10:00", cierre: "18:00" },
+          "Mié": { activo: true, apertura: "10:00", cierre: "18:00" },
+          "Jue": { activo: true, apertura: "10:00", cierre: "18:00" },
+          "Vie": { activo: true, apertura: "10:00", cierre: "18:00" },
+          "Sáb": { activo: true, apertura: "10:00", cierre: "18:00" },
+          "Dom": { activo: false, apertura: "10:00", cierre: "18:00" }
         }
       };
     }
@@ -153,19 +153,19 @@ export async function getHorariosConfig() {
     return {
       duracion: 45,
       dias: {
-        "Lun": { activo: true, intervalos: [{ apertura: "10:00", cierre: "18:00" }] },
-        "Mar": { activo: true, intervalos: [{ apertura: "10:00", cierre: "18:00" }] },
-        "Mié": { activo: true, intervalos: [{ apertura: "10:00", cierre: "18:00" }] },
-        "Jue": { activo: true, intervalos: [{ apertura: "10:00", cierre: "18:00" }] },
-        "Vie": { activo: true, intervalos: [{ apertura: "10:00", cierre: "18:00" }] },
-        "Sáb": { activo: true, intervalos: [{ apertura: "10:00", cierre: "18:00" }] },
-        "Dom": { activo: false, intervalos: [] }
+        "Lun": { activo: true, apertura: "10:00", cierre: "18:00" },
+        "Mar": { activo: true, apertura: "10:00", cierre: "18:00" },
+        "Mié": { activo: true, apertura: "10:00", cierre: "18:00" },
+        "Jue": { activo: true, apertura: "10:00", cierre: "18:00" },
+        "Vie": { activo: true, apertura: "10:00", cierre: "18:00" },
+        "Sáb": { activo: true, apertura: "10:00", cierre: "18:00" },
+        "Dom": { activo: false, apertura: "10:00", cierre: "18:00" }
       }
     };
   }
 }
 
-// Función auxiliar para normalizar configs viejas a la nueva estructura de intervalos por día
+// Función auxiliar para normalizar configs viejas a la estructura de un horario por día
 function normalizeConfig(rawVal) {
   const baseDuration = rawVal.duracion ?? 45;
   
@@ -175,16 +175,18 @@ function normalizeConfig(rawVal) {
     Object.keys(rawVal.dias).forEach(d => {
       const dayData = rawVal.dias[d];
       
-      // Si ya viene con formato de intervalos, lo dejamos
-      if (dayData.intervalos && Array.isArray(dayData.intervalos)) {
-        newDias[d] = dayData;
-      } else {
-        // Si venía con apertura/cierre simple, lo convertimos a un único intervalo
+      // Si venía con formato de intervalos, extraemos el primero
+      if (dayData.intervalos && Array.isArray(dayData.intervalos) && dayData.intervalos.length > 0) {
         newDias[d] = {
           activo: dayData.activo ?? false,
-          intervalos: dayData.activo 
-            ? [{ apertura: dayData.apertura ?? "10:00", cierre: dayData.cierre ?? "18:00" }]
-            : []
+          apertura: dayData.intervalos[0].apertura ?? "10:00",
+          cierre: dayData.intervalos[0].cierre ?? "18:00"
+        };
+      } else {
+        newDias[d] = {
+          activo: dayData.activo ?? false,
+          apertura: dayData.apertura ?? "10:00",
+          cierre: dayData.cierre ?? "18:00"
         };
       }
     });
@@ -204,9 +206,8 @@ function normalizeConfig(rawVal) {
     const activo = activeDaysArray.includes(d);
     diasEstructura[d] = {
       activo: activo,
-      intervalos: activo 
-        ? [{ apertura: globalApertura, cierre: globalCierre }]
-        : []
+      apertura: globalApertura,
+      cierre: globalCierre
     };
   });
   
