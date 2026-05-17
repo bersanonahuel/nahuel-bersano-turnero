@@ -107,7 +107,7 @@ export default function Home() {
           <h2 style={{ fontSize: '2rem', letterSpacing: '-0.03em', marginBottom: '8px' }}>Servicios</h2>
           <p style={{ color: 'var(--text-muted)' }}>Cortes precisos y atención personalizada</p>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '24px', maxWidth: '700px', margin: '0 auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px', maxWidth: '350px', margin: '0 auto' }}>
           <div className="card text-center">
             <div style={{ background: '#f3f4f6', width: '56px', height: '56px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: '#111' }}>
               <Scissors size={26} />
@@ -115,14 +115,6 @@ export default function Home() {
             <h3 style={{ marginBottom: '8px' }}>Corte de Pelo</h3>
             <p style={{ color: 'var(--text-muted)', marginBottom: '16px', fontSize: '0.9rem' }}>Clásico o moderno, con el mejor acabado.</p>
             <p style={{ fontSize: '1.4rem', fontWeight: '700', letterSpacing: '-0.02em' }}>$8,000</p>
-          </div>
-          <div className="card text-center">
-            <div style={{ background: '#f3f4f6', width: '56px', height: '56px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: '#111' }}>
-              <Scissors size={26} />
-            </div>
-            <h3 style={{ marginBottom: '8px' }}>Corte + Barba</h3>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '16px', fontSize: '0.9rem' }}>Servicio completo, look integral.</p>
-            <p style={{ fontSize: '1.4rem', fontWeight: '700', letterSpacing: '-0.02em' }}>$12,000</p>
           </div>
         </div>
       </section>

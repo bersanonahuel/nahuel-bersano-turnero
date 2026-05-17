@@ -634,7 +634,7 @@ export default function Dashboard() {
 // ── Fallback mock data (cuando Supabase no está configurado aún) ──────────
 const MOCK_TURNOS = [
   { id: 1, cliente_uid: 'u1', cliente_name: 'Martín Gómez',  servicio: 'Corte de Pelo', hora: '10:00', estado: 'confirmado' },
-  { id: 2, cliente_uid: 'u2', cliente_name: 'Lucas Silva',   servicio: 'Corte + Barba', hora: '11:30', estado: 'pendiente' },
+  { id: 2, cliente_uid: 'u2', cliente_name: 'Lucas Silva',   servicio: 'Corte de Pelo', hora: '11:30', estado: 'pendiente' },
   { id: 3, cliente_uid: 'u3', cliente_name: 'Andrés López',  servicio: 'Corte de Pelo', hora: '14:00', estado: 'pendiente' },
 ];
 

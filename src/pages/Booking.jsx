@@ -7,7 +7,6 @@ import { enviarConfirmacion } from '../lib/email';
 
 const SERVICIOS = [
   { id: 'corte',       name: 'Corte de Pelo',  precio: 8000,  duracion: '45 min' },
-  { id: 'corte_barba', name: 'Corte + Barba',  precio: 12000, duracion: '60 min' },
 ];
 
 export default function Booking() {
