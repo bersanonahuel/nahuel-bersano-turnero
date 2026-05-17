@@ -19,10 +19,16 @@ export default function Dashboard() {
   const [toastMsg,      setToastMsg]      = useState('');
 
   const [configState, setConfigState] = useState({
-    apertura: '10:00',
-    cierre: '18:00',
     duracion: 45,
-    dias: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+    dias: {
+      "Lun": { activo: true, apertura: "10:00", cierre: "18:00" },
+      "Mar": { activo: true, apertura: "10:00", cierre: "18:00" },
+      "Mié": { activo: true, apertura: "10:00", cierre: "18:00" },
+      "Jue": { activo: true, apertura: "10:00", cierre: "18:00" },
+      "Vie": { activo: true, apertura: "10:00", cierre: "18:00" },
+      "Sáb": { activo: true, apertura: "10:00", cierre: "18:00" },
+      "Dom": { activo: false, apertura: "10:00", cierre: "18:00" }
+    }
   });
 
   useEffect(() => {
@@ -427,7 +433,7 @@ export default function Dashboard() {
 
           {/* ── CONFIGURACIÓN ────────────────────────────────────────── */}
           {activeTab === 'configuracion' && (
-            <div style={{ maxWidth: '480px' }}>
+            <div style={{ maxWidth: '520px' }}>
               <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '20px' }}>Configuración de Horarios</h3>
               
               <div className="input-group">
@@ -439,57 +445,84 @@ export default function Dashboard() {
                   onChange={e => setConfigState({ ...configState, duracion: parseInt(e.target.value) || 45 })}
                 />
               </div>
-              
-              <div className="input-group">
-                <label className="input-label">Hora de apertura</label>
-                <input
-                  type="time"
-                  className="input-field"
-                  value={configState.apertura}
-                  onChange={e => setConfigState({ ...configState, apertura: e.target.value })}
-                />
-              </div>
-              
-              <div className="input-group">
-                <label className="input-label">Hora de cierre</label>
-                <input
-                  type="time"
-                  className="input-field"
-                  value={configState.cierre}
-                  onChange={e => setConfigState({ ...configState, cierre: e.target.value })}
-                />
-              </div>
-              
-              <div className="input-group">
-                <label className="input-label">Días de atención</label>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
+
+              <div className="input-group" style={{ marginTop: '24px' }}>
+                <label className="input-label" style={{ marginBottom: '14px', display: 'block', fontWeight: '600' }}>Horarios por Día de Atención</label>
+                <div style={{ display: 'grid', gap: '12px' }}>
                   {['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(d => {
-                    const active = configState.dias.includes(d);
+                    const dayData = configState.dias?.[d] || { activo: false, apertura: '10:00', cierre: '18:00' };
                     return (
-                      <button
-                        key={d}
-                        type="button"
-                        onClick={() => {
-                          const newDias = active
-                            ? configState.dias.filter(x => x !== d)
-                            : [...configState.dias, d];
-                          setConfigState({ ...configState, dias: newDias });
-                        }}
-                        style={{
-                          padding: '8px 16px',
-                          borderRadius: 'var(--radius-sm)',
-                          border: '1px solid var(--border-color)',
-                          background: active ? '#111' : '#fff',
-                          color: active ? '#fff' : '#111',
-                          fontWeight: '600',
-                          fontFamily: 'inherit',
-                          cursor: 'pointer',
-                          fontSize: '0.85rem',
-                          transition: 'all 0.15s ease'
-                        }}
-                      >
-                        {d}
-                      </button>
+                      <div key={d} style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '12px 16px',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: 'var(--radius-md)',
+                        background: dayData.activo ? '#fff' : '#f9f9f9',
+                        transition: 'all 0.15s ease',
+                        opacity: dayData.activo ? 1 : 0.7,
+                        flexWrap: 'wrap',
+                        gap: '12px'
+                      }}>
+                        {/* Checkbox + Day Label */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <input
+                            type="checkbox"
+                            checked={dayData.activo}
+                            onChange={e => {
+                              const newDias = { ...configState.dias };
+                              newDias[d] = { ...dayData, activo: e.target.checked };
+                              setConfigState({ ...configState, dias: newDias });
+                            }}
+                            style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#111' }}
+                          />
+                          <span style={{ fontWeight: '600', fontSize: '0.95rem', minWidth: '36px' }}>{d}</span>
+                        </div>
+
+                        {/* Time pickers (only relevant if active) */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <input
+                            type="time"
+                            disabled={!dayData.activo}
+                            value={dayData.apertura}
+                            onChange={e => {
+                              const newDias = { ...configState.dias };
+                              newDias[d] = { ...dayData, apertura: e.target.value };
+                              setConfigState({ ...configState, dias: newDias });
+                            }}
+                            style={{
+                              padding: '6px 10px',
+                              borderRadius: 'var(--radius-sm)',
+                              border: '1px solid var(--border-color)',
+                              fontSize: '0.85rem',
+                              fontFamily: 'inherit',
+                              background: dayData.activo ? '#fff' : '#eee',
+                              cursor: dayData.activo ? 'pointer' : 'not-allowed'
+                            }}
+                          />
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>a</span>
+                          <input
+                            type="time"
+                            disabled={!dayData.activo}
+                            value={dayData.cierre}
+                            onChange={e => {
+                              const newDias = { ...configState.dias };
+                              newDias[d] = { ...dayData, cierre: e.target.value };
+                              setConfigState({ ...configState, dias: newDias });
+                            }}
+                            style={{
+                              padding: '6px 10px',
+                              borderRadius: 'var(--radius-sm)',
+                              border: '1px solid var(--border-color)',
+                              fontSize: '0.85rem',
+                              fontFamily: 'inherit',
+                              background: dayData.activo ? '#fff' : '#eee',
+                              cursor: dayData.activo ? 'pointer' : 'not-allowed'
+                            }}
+                          />
+                        </div>
+                      </div>
                     );
                   })}
                 </div>

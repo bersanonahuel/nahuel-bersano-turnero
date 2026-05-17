@@ -126,21 +126,75 @@ export async function sumarPuntos(clienteUid, puntos = 30) {
  * Obtiene la configuración de horarios.
  */
 export async function getHorariosConfig() {
-  const { data, error } = await supabase
-    .from('configuraciones')
-    .select('valor')
-    .eq('clave', 'horarios')
-    .maybeSingle();
+  try {
+    const { data, error } = await supabase
+      .from('configuraciones')
+      .select('valor')
+      .eq('clave', 'horarios')
+      .maybeSingle();
 
-  if (error || !data) {
+    if (error || !data) {
+      return {
+        duracion: 45,
+        dias: {
+          "Lun": { activo: true, apertura: "10:00", cierre: "18:00" },
+          "Mar": { activo: true, apertura: "10:00", cierre: "18:00" },
+          "Mié": { activo: true, apertura: "10:00", cierre: "18:00" },
+          "Jue": { activo: true, apertura: "10:00", cierre: "18:00" },
+          "Vie": { activo: true, apertura: "10:00", cierre: "18:00" },
+          "Sáb": { activo: true, apertura: "10:00", cierre: "18:00" },
+          "Dom": { activo: false, apertura: "10:00", cierre: "18:00" }
+        }
+      };
+    }
+    return normalizeConfig(data.valor);
+  } catch (err) {
+    console.error('Error cargando config:', err);
     return {
-      apertura: '10:00',
-      cierre: '18:00',
       duracion: 45,
-      dias: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+      dias: {
+        "Lun": { activo: true, apertura: "10:00", cierre: "18:00" },
+        "Mar": { activo: true, apertura: "10:00", cierre: "18:00" },
+        "Mié": { activo: true, apertura: "10:00", cierre: "18:00" },
+        "Jue": { activo: true, apertura: "10:00", cierre: "18:00" },
+        "Vie": { activo: true, apertura: "10:00", cierre: "18:00" },
+        "Sáb": { activo: true, apertura: "10:00", cierre: "18:00" },
+        "Dom": { activo: false, apertura: "10:00", cierre: "18:00" }
+      }
     };
   }
-  return data.valor;
+}
+
+// Función auxiliar para normalizar configs viejas a la nueva estructura de días separados
+function normalizeConfig(rawVal) {
+  const baseDuration = rawVal.duracion ?? 45;
+  
+  // Si rawVal ya tiene el objeto de días con su apertura/cierre, lo dejamos tal cual
+  if (rawVal.dias && typeof rawVal.dias === 'object' && !Array.isArray(rawVal.dias)) {
+    return {
+      duracion: baseDuration,
+      dias: rawVal.dias
+    };
+  }
+  
+  // Si rawVal tiene el formato viejo de array de días y apertura/cierre globales:
+  const activeDaysArray = Array.isArray(rawVal.dias) ? rawVal.dias : ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+  const globalApertura = rawVal.apertura ?? "10:00";
+  const globalCierre = rawVal.cierre ?? "18:00";
+  
+  const diasEstructura = {};
+  ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].forEach(d => {
+    diasEstructura[d] = {
+      activo: activeDaysArray.includes(d),
+      apertura: globalApertura,
+      cierre: globalCierre
+    };
+  });
+  
+  return {
+    duracion: baseDuration,
+    dias: diasEstructura
+  };
 }
 
 /**

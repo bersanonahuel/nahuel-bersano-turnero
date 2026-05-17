@@ -42,14 +42,34 @@ export default function Booking() {
   const hoy = new Date().toISOString().split('T')[0];
 
   // ── Generar slots de horarios dinámicos ──────────────────────────────
+  const diasSemanaMapa = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
   const generarHorarios = () => {
     const slots = [];
-    if (!config.apertura || !config.cierre) return slots;
-    const [hApertura, mApertura] = config.apertura.split(':').map(Number);
-    const [hCierre, mCierre] = config.cierre.split(':').map(Number);
+    if (!selectedDate || !config || !config.dias) return slots;
+    
+    const dateObj = new Date(selectedDate + 'T12:00:00');
+    const diaNombre = diasSemanaMapa[dateObj.getDay()];
+    
+    let apertura = "10:00";
+    let cierre = "18:00";
+    
+    if (config.dias && typeof config.dias === 'object' && !Array.isArray(config.dias)) {
+      const diaConfig = config.dias[diaNombre];
+      if (!diaConfig || !diaConfig.activo) return slots;
+      apertura = diaConfig.apertura;
+      cierre = diaConfig.cierre;
+    } else {
+      // Fallback viejo
+      apertura = config.apertura || "10:00";
+      cierre = config.cierre || "18:00";
+    }
+    
+    const [hApertura, mApertura] = apertura.split(':').map(Number);
+    const [hCierre, mCierre] = cierre.split(':').map(Number);
     
     // Parsear duración del servicio (ej. "45 min" -> 45)
-    let duracionMinutos = config.duracion;
+    let duracionMinutos = config.duracion || 45;
     if (servicio && servicio.duracion) {
       const match = servicio.duracion.match(/(\d+)/);
       if (match) {
@@ -73,12 +93,18 @@ export default function Booking() {
   };
 
   // Validar si el día de la semana es laboral
-  const diasSemanaMapa = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
   const esDiaLaboral = (fechaStr) => {
-    if (!fechaStr) return true;
+    if (!fechaStr || !config || !config.dias) return true;
     const dateObj = new Date(fechaStr + 'T12:00:00'); // Evitar problemas de zona horaria
     const diaNombre = diasSemanaMapa[dateObj.getDay()];
-    return config.dias.includes(diaNombre);
+    
+    if (config.dias && typeof config.dias === 'object' && !Array.isArray(config.dias)) {
+      return config.dias[diaNombre]?.activo ?? false;
+    }
+    if (Array.isArray(config.dias)) {
+      return config.dias.includes(diaNombre);
+    }
+    return true;
   };
 
   // Cargar horas ocupadas cuando cambia la fecha
