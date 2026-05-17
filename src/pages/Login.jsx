@@ -7,19 +7,21 @@ export default function Login() {
   const navigate = useNavigate();
   const { user, loginWithGoogle, loginAsAdmin } = useAuth();
   const [showAdminPanel, setShowAdminPanel] = useState(false);
-  const [adminEmail, setAdminEmail] = useState('');
-  const [adminPass, setAdminPass] = useState('');
+  const [adminEmail, setAdminEmail] = useState('admin@turnero.com');
+  const [adminPass, setAdminPass] = useState('123456');
 
   useEffect(() => {
     if (user) {
-      if (user.role === 'admin') navigate('/dashboard');
+      if (user.role === 'admin' || user.permiso_horarios) navigate('/dashboard');
       else navigate('/book');
     }
   }, [user, navigate]);
 
   const handleAdminSubmit = (e) => {
     e.preventDefault();
-    if (adminEmail === 'admin@turnero.com') loginAsAdmin();
+    if (adminEmail.trim().toLowerCase() === 'admin@turnero.com') {
+      loginAsAdmin();
+    }
   };
 
   return (
