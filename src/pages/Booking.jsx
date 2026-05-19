@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { crearTurno, getHorasOcupadas, getHorariosConfig } from '../lib/turnos';
 import { getServicios } from '../lib/servicios';
-import { enviarConfirmacion } from '../lib/email';
+// EmailJS ya no se usa, redirigimos a WhatsApp
 
 export default function Booking() {
   const { user, loginWithGoogle } = useAuth();
@@ -153,9 +153,7 @@ export default function Booking() {
         <p style={{ color: 'var(--text-muted)', marginBottom: '8px' }}>
           {servicio.name} {esFijo && ' (Turno Fijo Recurrente)'} — {selectedDate} a las {selectedTime}
         </p>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '32px' }}>
-          Te enviamos una confirmación a <strong>{user?.email}</strong>. Recibirás un recordatorio 30 min antes.
-        </p>
+          Se abrió una pestaña de <strong>WhatsApp</strong> para que nos envíes un mensaje y quede el turno registrado. Recibirás recordatorios por ahí.
         <button className="btn-primary" onClick={() => navigate('/')}>Volver al inicio</button>
       </div>
     );
@@ -182,19 +180,11 @@ export default function Booking() {
         duracion:      duracionMinutos,
       });
 
-      // Email de confirmación
-      try {
-        await enviarConfirmacion({
-          to_email: user.email,
-          to_name:  user.name,
-          fecha:    selectedDate,
-          hora:     selectedTime,
-          servicio: `${servicio.name}${esFijo ? ' (Turno Fijo Semanal)' : ''}`,
-        });
-      } catch {
-        // Email falla silenciosamente (EmailJS no configurado aún)
-        console.warn('Email no enviado — configurar EmailJS en .env');
-      }
+      // Redirigir a WhatsApp
+      const celularAdmin = "5493472436713";
+      const textoWpp = `¡Hola Nahuel! Reservé un turno en tu página web.\n\n👤 *Nombre:* ${user.name}\n✂️ *Servicio:* ${servicio.name} ${esFijo ? '(Turno Fijo)' : ''}\n📅 *Fecha:* ${selectedDate.split('-').reverse().join('/')}\n⏰ *Hora:* ${selectedTime}\n\n¡Nos vemos!`;
+      const urlWpp = `https://wa.me/${celularAdmin}?text=${encodeURIComponent(textoWpp)}`;
+      window.open(urlWpp, '_blank');
 
       setConfirmado(true);
     } catch (err) {
