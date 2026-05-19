@@ -142,24 +142,7 @@ export default function Booking() {
       .finally(() => setLoadingH(false));
   }, [selectedDate]);
 
-  // ── Pantalla de login rápido ──────────────────────────────────────────
-  if (!user) {
-    return (
-      <div className="container section text-center" style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <h2 style={{ marginBottom: '16px', fontSize: '2rem', letterSpacing: '-0.03em' }}>¡Casi listo!</h2>
-        <p style={{ color: 'var(--text-muted)', marginBottom: '32px', maxWidth: '380px', lineHeight: '1.7' }}>
-          Iniciá sesión con Google para asociar tu turno, recibir recordatorios y sumar puntos.
-        </p>
-        <button
-          onClick={loginWithGoogle}
-          style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 24px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', background: '#fff', color: '#111', fontFamily: 'inherit', fontSize: '1rem', fontWeight: '500', cursor: 'pointer', boxShadow: 'var(--shadow-subtle)' }}
-        >
-          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" style={{ width: '20px' }} />
-          Continuar con Google
-        </button>
-      </div>
-    );
-  }
+  // El login rápido ahora se pide en el paso 3 (Confirmar) para no ser invasivo.
 
   // ── Confirmación final ───────────────────────────────────────────────
   if (confirmado) {
@@ -171,7 +154,7 @@ export default function Booking() {
           {servicio.name} {esFijo && ' (Turno Fijo Recurrente)'} — {selectedDate} a las {selectedTime}
         </p>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '32px' }}>
-          Te enviamos una confirmación a <strong>{user.email}</strong>. Recibirás un recordatorio 30 min antes.
+          Te enviamos una confirmación a <strong>{user?.email}</strong>. Recibirás un recordatorio 30 min antes.
         </p>
         <button className="btn-primary" onClick={() => navigate('/')}>Volver al inicio</button>
       </div>
@@ -229,7 +212,7 @@ export default function Booking() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 style={{ fontSize: '2.2rem', letterSpacing: '-0.03em', marginBottom: '8px' }}>Reservar Turno</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>Hola, <strong>{user.name}</strong> — elegí tu servicio, fecha y hora.</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>Hola{user?.name ? `, ${user.name}` : ''} — elegí tu servicio, fecha y hora.</p>
         </div>
 
         {/* Progress */}
@@ -304,7 +287,7 @@ export default function Booking() {
             {selectedDate && !esDiaLaboral(selectedDate) && (
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', color: 'var(--danger)', marginTop: '12px', fontSize: '0.9rem' }}>
                 <AlertCircle size={16} />
-                La barbería no abre este día. Días de atención: {config.dias.join(', ')}.
+                La barbería no abre este día. Días de atención: {Array.isArray(config.dias) ? config.dias.join(', ') : Object.keys(config.dias).filter(d => config.dias[d].activo).join(', ')}.
               </div>
             )}
 
@@ -384,7 +367,23 @@ export default function Booking() {
         )}
 
         {/* ── STEP 3: Confirmar ─────────────────────────────────────────── */}
-        {step === 3 && (
+        {step === 3 && !user && (
+          <div className="card text-center" style={{ padding: '40px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <h3 style={{ marginBottom: '16px', fontSize: '1.4rem' }}>Iniciá sesión para confirmar</h3>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '24px', maxWidth: '380px', lineHeight: '1.6' }}>
+              Ya tenés tu turno reservado. Solo falta iniciar sesión con Google para asociarlo a tu cuenta y recibir recordatorios.
+            </p>
+            <button
+              onClick={loginWithGoogle}
+              style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 24px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', background: '#fff', color: '#111', fontFamily: 'inherit', fontSize: '1rem', fontWeight: '500', cursor: 'pointer', boxShadow: 'var(--shadow-subtle)' }}
+            >
+              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" style={{ width: '20px' }} />
+              Continuar con Google
+            </button>
+          </div>
+        )}
+
+        {step === 3 && user && (
           <div className="card">
             <h3 style={{ marginBottom: '20px', fontSize: '1.1rem' }}>Resumen de tu turno</h3>
             <div style={{ display: 'grid', gap: '12px', marginBottom: '24px' }}>
@@ -441,7 +440,7 @@ export default function Booking() {
             </button>
           )}
 
-          {step === 3 && (
+          {step === 3 && user && (
             <button
               className="btn-primary"
               onClick={handleConfirmar}

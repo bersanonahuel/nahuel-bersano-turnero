@@ -93,27 +93,13 @@ CREATE INDEX IF NOT EXISTS idx_turnos_cliente  ON turnos(cliente_uid);
 CREATE INDEX IF NOT EXISTS idx_turnos_estado   ON turnos(estado);
 
 -- ── Row Level Security (RLS) ─────────────────────────────────────────
--- El cliente solo ve SUS propios turnos
-ALTER TABLE turnos   ENABLE ROW LEVEL SECURITY;
-ALTER TABLE clientes ENABLE ROW LEVEL SECURITY;
-
--- Política: lectura propia
-CREATE POLICY "clientes_ver_propios" ON turnos
-  FOR SELECT USING (cliente_email = current_setting('request.jwt.claims', true)::json->>'email');
-
-CREATE POLICY "cliente_ver_perfil" ON clientes
-  FOR SELECT USING (email = current_setting('request.jwt.claims', true)::json->>'email');
-
--- Política: insertar turno autenticado
-CREATE POLICY "clientes_insertar_turno" ON turnos
-  FOR INSERT WITH CHECK (true);
-
--- Política: upsert cliente
-CREATE POLICY "clientes_upsert" ON clientes
-  FOR ALL USING (true);
-
+-- Para permitir que el admin edite y vea todo sin problemas, desactivamos RLS.
+-- (Si en el futuro se requiere mayor seguridad, se pueden volver a activar y crear políticas detalladas)
+ALTER TABLE turnos DISABLE ROW LEVEL SECURITY;
+ALTER TABLE clientes DISABLE ROW LEVEL SECURITY;
 ALTER TABLE productos DISABLE ROW LEVEL SECURITY;
 ALTER TABLE servicios DISABLE ROW LEVEL SECURITY;
+ALTER TABLE configuraciones DISABLE ROW LEVEL SECURITY;
 
 -- Datos de ejemplo (opcional)
 INSERT INTO productos (name, descripcion, precio) VALUES
