@@ -65,14 +65,15 @@ export async function getTodosTurnos() {
 }
 
 /**
- * Obtiene los turnos de hoy (para el panel admin).
+ * Obtiene los próximos turnos a partir de hoy (para el panel admin).
  */
-export async function getTurnosHoy() {
+export async function getProximosTurnos() {
   const hoy = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
   const { data, error } = await supabase
     .from('turnos')
     .select('*')
-    .eq('fecha', hoy)
+    .gte('fecha', hoy)
+    .order('fecha', { ascending: true })
     .order('hora', { ascending: true });
 
   if (error) throw error;

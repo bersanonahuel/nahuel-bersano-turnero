@@ -3,7 +3,7 @@ import { Calendar, Users, Check, X, Clock, Settings, Package, TrendingUp, Star, 
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { getTurnosHoy, actualizarEstadoTurno, sumarPuntos, getHorariosConfig, guardarHorariosConfig } from '../lib/turnos';
+import { getProximosTurnos, actualizarEstadoTurno, sumarPuntos, getHorariosConfig, guardarHorariosConfig } from '../lib/turnos';
 import { getAllProductos, crearProducto, actualizarProducto, eliminarProducto } from '../lib/productos';
 import { getAllServicios, crearServicio, actualizarServicio, eliminarServicio } from '../lib/servicios';
 
@@ -73,7 +73,7 @@ export default function Dashboard() {
   async function fetchTurnos() {
     setLoadingTurnos(true);
     try {
-      const data = await getTurnosHoy();
+      const data = await getProximosTurnos();
       setTurnosHoy(data);
     } catch {
       setTurnosHoy(MOCK_TURNOS); // fallback a mock si Supabase no está configurado
@@ -251,7 +251,7 @@ export default function Dashboard() {
   ];
 
   const TABS = [
-    { id: 'turnos',         label: 'Turnos de Hoy',    icon: <Clock size={15} /> },
+    { id: 'turnos',         label: 'Próximos Turnos',    icon: <Clock size={15} /> },
     user?.role === 'admin' && { id: 'clientes',       label: 'Clientes',          icon: <Users size={15} /> },
     user?.role === 'admin' && { id: 'puntos',         label: 'Puntos',             icon: <Star size={15} /> },
     user?.role === 'admin' && { id: 'productos',      label: 'Productos',          icon: <Package size={15} /> },
@@ -317,19 +317,19 @@ export default function Dashboard() {
           {activeTab === 'turnos' && (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>Turnos de hoy — {new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}</h3>
+                <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>Próximos Turnos</h3>
                 <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{turnosHoy.length} turnos</span>
               </div>
               {loadingTurnos ? (
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Cargando turnos...</p>
               ) : turnosHoy.length === 0 ? (
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No hay turnos para hoy.</p>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No hay turnos próximos.</p>
               ) : (
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '560px' }}>
                     <thead>
                       <tr style={{ textAlign: 'left', color: 'var(--text-muted)', fontSize: '0.82rem', borderBottom: '1px solid var(--border-color)' }}>
-                        <th style={{ padding: '10px 0' }}>Hora</th>
+                        <th style={{ padding: '10px 0' }}>Fecha y Hora</th>
                         <th style={{ padding: '10px 0' }}>Cliente</th>
                         <th style={{ padding: '10px 0' }}>Servicio</th>
                         <th style={{ padding: '10px 0' }}>Estado</th>
@@ -341,6 +341,9 @@ export default function Dashboard() {
                         <tr key={turno.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                           <td style={{ padding: '14px 0', fontWeight: '600' }}>
                             <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <Calendar size={14} /> {turno.fecha.split('-').reverse().join('/')}
+                            </span>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                               <Clock size={14} /> {turno.hora}
                             </span>
                           </td>
