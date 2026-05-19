@@ -5,24 +5,20 @@ import { getServicios } from '../lib/servicios';
 
 const galleryPhotos = [
   {
-    url: 'https://images.unsplash.com/photo-1622286342621-4bd786c2447c?w=800&auto=format&fit=crop',
-    label: 'Fade Clásico'
+    url: '/corte1.png',
+    label: 'Corte 1'
   },
   {
-    url: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=800&auto=format&fit=crop',
-    label: 'Degradado Moderno'
+    url: '/corte2.png',
+    label: 'Corte 2'
   },
   {
-    url: 'https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=800&auto=format&fit=crop',
-    label: 'Corte Texturizado'
+    url: '/corte3.png',
+    label: 'Corte 3'
   },
   {
-    url: 'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=800&auto=format&fit=crop',
-    label: 'Arreglo de Barba'
-  },
-  {
-    url: 'https://images.unsplash.com/photo-1560869713-da86a9ec0744?w=800&auto=format&fit=crop',
-    label: 'Pompadour'
+    url: '/corte4.png',
+    label: 'Corte 4'
   },
 ];
 
@@ -63,8 +59,8 @@ export default function Home() {
       <section className="hero">
         <div className="hero-bg"></div>
         <div className="container hero-content">
-          <h1>Precisión en <br /><span style={{ color: 'var(--text-muted)' }}>cada detalle.</span></h1>
-          <p>Un espacio exclusivo, diseñado a medida para perfeccionar tu imagen.</p>
+          <h1>Un buen corte, <br /><span style={{ color: 'var(--text-muted)' }}>un buen día.</span></h1>
+          <p>Más que una barbería.</p>
           <div className="hero-actions">
             <Link to="/book" className="btn-primary">
               <Calendar size={20} />
