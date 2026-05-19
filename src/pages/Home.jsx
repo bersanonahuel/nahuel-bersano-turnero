@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, Scissors, ChevronLeft, ChevronRight } from 'lucide-react';
+import { getServicios } from '../lib/servicios';
 
 const galleryPhotos = [
   {
@@ -27,6 +28,8 @@ const galleryPhotos = [
 
 export default function Home() {
   const [current, setCurrent] = useState(0);
+  const [servicios, setServicios] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   // Auto-slide
   useEffect(() => {
@@ -34,6 +37,21 @@ export default function Home() {
       setCurrent(prev => (prev + 1) % galleryPhotos.length);
     }, 3500);
     return () => clearInterval(timer);
+  }, []);
+
+  // Fetch servicios
+  useEffect(() => {
+    async function fetchServs() {
+      try {
+        const data = await getServicios();
+        setServicios(data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchServs();
   }, []);
 
   const prev = () => setCurrent(c => (c - 1 + galleryPhotos.length) % galleryPhotos.length);
@@ -107,15 +125,19 @@ export default function Home() {
           <h2 style={{ fontSize: '2rem', letterSpacing: '-0.03em', marginBottom: '8px' }}>Servicios</h2>
           <p style={{ color: 'var(--text-muted)' }}>Cortes precisos y atención personalizada</p>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px', maxWidth: '350px', margin: '0 auto' }}>
-          <div className="card text-center">
-            <div style={{ background: '#f3f4f6', width: '56px', height: '56px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: '#111' }}>
-              <Scissors size={26} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', maxWidth: '1000px', margin: '0 auto' }}>
+          {loading ? (
+            <p className="text-center" style={{ gridColumn: '1 / -1' }}>Cargando servicios...</p>
+          ) : servicios.map(s => (
+            <div key={s.id} className="card text-center">
+              <div style={{ background: '#f3f4f6', width: '56px', height: '56px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: '#111' }}>
+                <Scissors size={26} />
+              </div>
+              <h3 style={{ marginBottom: '8px' }}>{s.name}</h3>
+              <p style={{ color: 'var(--text-muted)', marginBottom: '16px', fontSize: '0.9rem' }}>{s.descripcion}</p>
+              <p style={{ fontSize: '1.4rem', fontWeight: '700', letterSpacing: '-0.02em' }}>${s.precio}</p>
             </div>
-            <h3 style={{ marginBottom: '8px' }}>Corte de Pelo</h3>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '16px', fontSize: '0.9rem' }}>Clásico o moderno, con el mejor acabado.</p>
-            <p style={{ fontSize: '1.4rem', fontWeight: '700', letterSpacing: '-0.02em' }}>$8,000</p>
-          </div>
+          ))}
         </div>
       </section>
 

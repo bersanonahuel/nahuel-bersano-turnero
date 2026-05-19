@@ -42,6 +42,17 @@ CREATE TABLE IF NOT EXISTS productos (
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- ── Tabla: servicios ──────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS servicios (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        TEXT NOT NULL,
+  descripcion TEXT,
+  precio      INTEGER NOT NULL,
+  duracion    INTEGER DEFAULT 45,
+  activo      BOOLEAN DEFAULT TRUE,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ── Tabla: promociones_puntos ─────────────────────────────────────────
 -- (para el futuro sistema de canjes)
 CREATE TABLE IF NOT EXISTS promociones_puntos (
@@ -101,8 +112,17 @@ CREATE POLICY "clientes_insertar_turno" ON turnos
 CREATE POLICY "clientes_upsert" ON clientes
   FOR ALL USING (true);
 
+ALTER TABLE productos DISABLE ROW LEVEL SECURITY;
+ALTER TABLE servicios DISABLE ROW LEVEL SECURITY;
+
 -- Datos de ejemplo (opcional)
 INSERT INTO productos (name, descripcion, precio) VALUES
   ('Cera Mate Premium', 'Fijación fuerte, sin brillo. Ideal para cortes modernos.', 8500),
   ('Aceite para Barba', 'Hidratación profunda con aroma neutro.', 6000)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO servicios (name, descripcion, precio, duracion) VALUES
+  ('Corte Clásico', 'Corte de pelo a tijera o máquina con lavado incluido.', 8000, 45),
+  ('Corte y Barba', 'Servicio completo de corte de pelo y perfilado de barba.', 12000, 60),
+  ('Perfilado de Barba', 'Arreglo, rebaje y perfilado de barba con navaja.', 5000, 30)
 ON CONFLICT DO NOTHING;

@@ -23,6 +23,9 @@ export default function Navbar() {
         <div className="nav-links nav-desktop">
           <Link to="/" className={`nav-link ${isActive('/')}`}>Inicio</Link>
           <Link to="/products" className={`nav-link ${isActive('/products')}`}>Productos</Link>
+          {user && (
+            <Link to="/mis-turnos" className={`nav-link ${isActive('/mis-turnos')}`}>Mis Turnos</Link>
+          )}
           {(user?.role === 'admin' || user?.permiso_horarios) && (
             <Link to="/dashboard" className={`nav-link ${isActive('/dashboard')}`}>Panel Admin</Link>
           )}
@@ -68,6 +71,9 @@ export default function Navbar() {
         <div className="nav-mobile-drawer">
           <Link to="/" className="nav-mobile-link" onClick={closeMobile}>Inicio</Link>
           <Link to="/products" className="nav-mobile-link" onClick={closeMobile}>Productos</Link>
+          {user && (
+            <Link to="/mis-turnos" className="nav-mobile-link" onClick={closeMobile}>Mis Turnos</Link>
+          )}
           {(user?.role === 'admin' || user?.permiso_horarios) && (
             <Link to="/dashboard" className="nav-mobile-link" onClick={closeMobile}>Panel Admin</Link>
           )}

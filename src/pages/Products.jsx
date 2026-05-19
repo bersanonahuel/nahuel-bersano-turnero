@@ -1,43 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
+import { getProductos } from '../lib/productos';
 
 export default function Products() {
   const [searchTerm, setSearchTerm] = useState('');
-  
-  const products = [
-    { 
-      id: 1, 
-      name: 'Cera Mate Premium', 
-      category: 'Ceras', 
-      price: '$8,500', 
-      description: 'Fijación fuerte de efecto mate natural. Ideal para peinados estructurados con textura y volumen de larga duración durante todo el día sin dejar residuos.',
-      image: 'https://images.unsplash.com/photo-1599305090598-fe179d501227?w=500&auto=format&fit=crop' 
-    },
-    { 
-      id: 2, 
-      name: 'Aceite para Barba', 
-      category: 'Aceites', 
-      price: '$6,000', 
-      description: 'Nutre e hidrata profundamente el vello facial y la piel debajo. Formulado con aceites esenciales orgánicos para brindar suavidad, brillo e hidratación.',
-      image: 'https://images.unsplash.com/photo-1621607512214-68297480165e?w=500&auto=format&fit=crop' 
-    },
-    { 
-      id: 3, 
-      name: 'Shampoo Fortalecedor', 
-      category: 'Shampoos', 
-      price: '$5,500', 
-      description: 'Limpia con profundidad, fortalece los folículos pilosos y estimula el crecimiento saludable del cabello. Brinda un aroma fresco y revitalizante.',
-      image: 'https://images.unsplash.com/photo-1580870058826-2810f2df2e65?w=500&auto=format&fit=crop' 
-    },
-    { 
-      id: 4, 
-      name: 'Máquina Trimmer Pro', 
-      category: 'Máquinas', 
-      price: '$45,000', 
-      description: 'Recortadora profesional de alta precisión con cuchillas de acero inoxidable y batería recargable de larga duración. Perfecta para contornos y terminaciones.',
-      image: 'https://images.unsplash.com/photo-1593683693892-2b227c207d57?w=500&auto=format&fit=crop' 
-    },
-  ];
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchProds() {
+      try {
+        const data = await getProductos();
+        setProducts(data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchProds();
+  }, []);
 
   const filteredProducts = products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
@@ -61,19 +43,19 @@ export default function Products() {
       </div>
 
       <div className="grid grid-cols-4" style={{ gap: '24px' }}>
-        {filteredProducts.map(product => (
+        {loading ? <p className="text-center" style={{ gridColumn: 'span 4' }}>Cargando productos...</p> : filteredProducts.map(product => (
           <div key={product.id} className="card" style={{ padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)' }}>
-            <img src={product.image} alt={product.name} style={{ width: '100%', height: '220px', objectFit: 'cover' }} />
+            <img src={product.imagen_url || 'https://images.unsplash.com/photo-1599305090598-fe179d501227?w=500&auto=format&fit=crop'} alt={product.name} style={{ width: '100%', height: '220px', objectFit: 'cover' }} />
             <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 'bold', marginBottom: '8px' }}>
-                {product.category}
+                Producto
               </span>
               <h3 style={{ marginBottom: '10px', fontSize: '1.15rem', fontWeight: '700' }}>{product.name}</h3>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', lineHeight: '1.5', marginBottom: '16px' }}>
-                {product.description}
+                {product.descripcion}
               </p>
               <p style={{ fontSize: '1.3rem', fontWeight: '800', color: '#111', marginTop: 'auto', borderTop: '1px solid var(--border-color)', paddingTop: '14px', marginBottom: '0' }}>
-                {product.price}
+                ${product.precio}
               </p>
             </div>
           </div>

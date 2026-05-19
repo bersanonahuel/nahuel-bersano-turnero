@@ -7,8 +7,8 @@ export default function Login() {
   const navigate = useNavigate();
   const { user, loginWithGoogle, loginAsAdmin } = useAuth();
   const [showAdminPanel, setShowAdminPanel] = useState(false);
-  const [adminEmail, setAdminEmail] = useState('admin@turnero.com');
-  const [adminPass, setAdminPass] = useState('123456');
+  const [adminUser, setAdminUser] = useState('');
+  const [adminPass, setAdminPass] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -19,8 +19,10 @@ export default function Login() {
 
   const handleAdminSubmit = (e) => {
     e.preventDefault();
-    if (adminEmail.trim().toLowerCase() === 'admin@turnero.com') {
+    if (adminUser.trim() === 'Nahuel' && adminPass === 'bersano') {
       loginAsAdmin();
+    } else {
+      alert("Credenciales incorrectas");
     }
   };
 
@@ -86,16 +88,16 @@ export default function Login() {
         {showAdminPanel && (
           <form onSubmit={handleAdminSubmit} style={{ marginTop: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '20px' }}>
             <div className="input-group">
-              <label className="input-label">Email</label>
+              <label className="input-label">Usuario</label>
               <div style={{ position: 'relative' }}>
                 <Mail size={16} style={{ position: 'absolute', left: '14px', top: '16px', color: 'var(--text-muted)' }} />
                 <input
-                  type="email"
+                  type="text"
                   className="input-field"
                   style={{ paddingLeft: '40px' }}
-                  placeholder="admin@turnero.com"
-                  value={adminEmail}
-                  onChange={e => setAdminEmail(e.target.value)}
+                  placeholder="Usuario"
+                  value={adminUser}
+                  onChange={e => setAdminUser(e.target.value)}
                 />
               </div>
             </div>

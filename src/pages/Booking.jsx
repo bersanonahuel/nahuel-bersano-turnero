@@ -3,18 +3,16 @@ import { Calendar, Clock, CheckCircle, AlertCircle, RefreshCw } from 'lucide-rea
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { crearTurno, getHorasOcupadas, getHorariosConfig } from '../lib/turnos';
+import { getServicios } from '../lib/servicios';
 import { enviarConfirmacion } from '../lib/email';
-
-const SERVICIOS = [
-  { id: 'corte',       name: 'Corte de Pelo',  precio: 8000,  duracion: '45 min' },
-];
 
 export default function Booking() {
   const { user, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   const [step, setStep]             = useState(1);
-  const [servicio, setServicio]     = useState(SERVICIOS[0]);
+  const [servicio, setServicio]     = useState(null);
+  const [serviciosList, setServiciosList] = useState([]);
   const [selectedDate, setDate]     = useState('');
   const [selectedTime, setTime]     = useState('');
   const [horasOcupadas, setOcupadas]= useState([]);
@@ -30,11 +28,18 @@ export default function Booking() {
     dias: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
   });
 
-  // Cargar configuración de horarios al iniciar
+  // Cargar configuración y servicios al iniciar
   useEffect(() => {
     getHorariosConfig()
       .then(setConfig)
       .catch(err => console.error('Error al cargar config de horarios:', err));
+
+    getServicios()
+      .then(data => {
+        setServiciosList(data);
+        if (data && data.length > 0) setServicio(data[0]);
+      })
+      .catch(err => console.error('Error al cargar servicios:', err));
   }, []);
 
   // Hoy como mínimo para el datepicker
@@ -62,10 +67,7 @@ export default function Booking() {
     // Parsear duración del servicio (ej. "45 min" -> 45)
     let duracionMinutos = config.duracion || 45;
     if (servicio && servicio.duracion) {
-      const match = servicio.duracion.match(/(\d+)/);
-      if (match) {
-        duracionMinutos = parseInt(match[1], 10);
-      }
+      duracionMinutos = parseInt(servicio.duracion, 10);
     }
     
     let actual = new Date();
@@ -182,8 +184,7 @@ export default function Booking() {
     setError('');
 
     // Parsear duración del servicio
-    const match = servicio.duracion.match(/(\d+)/);
-    const duracionMinutos = match ? parseInt(match[1], 10) : config.duracion;
+    const duracionMinutos = servicio?.duracion ? parseInt(servicio.duracion, 10) : config.duracion;
 
     try {
       await crearTurno({
@@ -253,13 +254,13 @@ export default function Booking() {
         {/* ── STEP 1: Servicio ────────────────────────────────────────── */}
         {step === 1 && (
           <div style={{ display: 'grid', gap: '16px' }}>
-            {SERVICIOS.map(s => (
+            {serviciosList.map(s => (
               <button
                 key={s.id}
                 onClick={() => { setServicio(s); setStep(2); }}
                 style={{
                   padding: '24px',
-                  border: `2px solid ${servicio.id === s.id ? '#111' : 'var(--border-color)'}`,
+                  border: `2px solid ${servicio?.id === s.id ? '#111' : 'var(--border-color)'}`,
                   borderRadius: 'var(--radius-lg)',
                   background: '#fff',
                   cursor: 'pointer',
@@ -273,7 +274,7 @@ export default function Booking() {
               >
                 <div>
                   <p style={{ fontWeight: '600', fontSize: '1.1rem', marginBottom: '4px' }}>{s.name}</p>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{s.duracion}</p>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{s.duracion} min</p>
                 </div>
                 <p style={{ fontSize: '1.3rem', fontWeight: '700', letterSpacing: '-0.02em' }}>
                   ${s.precio.toLocaleString('es-AR')}

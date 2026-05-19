@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Users, Check, X, Clock, Settings, Package, TrendingUp, Star, RefreshCw, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { Calendar, Users, Check, X, Clock, Settings, Package, TrendingUp, Star, RefreshCw, ShieldAlert, ShieldCheck, Scissors } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { getTurnosHoy, actualizarEstadoTurno, sumarPuntos, getHorariosConfig, guardarHorariosConfig } from '../lib/turnos';
+import { getAllProductos, crearProducto, actualizarProducto, eliminarProducto } from '../lib/productos';
+import { getAllServicios, crearServicio, actualizarServicio, eliminarServicio } from '../lib/servicios';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -13,6 +15,7 @@ export default function Dashboard() {
   const [turnosHoy,     setTurnosHoy]     = useState([]);
   const [clientes,      setClientes]      = useState([]);
   const [products,      setProducts]      = useState([]);
+  const [servicios,     setServicios]     = useState([]);
   const [stats,         setStats]         = useState({ semana: 0, mes: 0, anio: 0 });
   const [loadingTurnos, setLoadingTurnos] = useState(true);
   const [loadingCli,    setLoadingCli]    = useState(true);
@@ -42,16 +45,29 @@ export default function Dashboard() {
     fetchTurnos();
     fetchStats();
     
-    // Solo admins pueden ver catálogo de productos y clientes
+    // Solo admins pueden ver catálogo de productos, servicios y clientes
     if (user?.role === 'admin') {
       fetchClientes();
       fetchProducts();
+      fetchServicios();
     }
     
     // Cargar config de horarios
     getHorariosConfig()
       .then(setConfigState)
       .catch(console.error);
+
+    // Suscripción a cambios en turnos (Real-time)
+    const turnosChannel = supabase.channel('realtime_turnos')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'turnos' }, () => {
+        fetchTurnos();
+        fetchStats();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(turnosChannel);
+    };
   }, [user]);
 
   async function fetchTurnos() {
@@ -103,11 +119,19 @@ export default function Dashboard() {
 
   async function fetchProducts() {
     try {
-      const { data, error } = await supabase.from('productos').select('*').order('created_at', { ascending: false });
-      if (error) throw error;
+      const data = await getAllProductos();
       setProducts(data);
     } catch {
       setProducts(MOCK_PRODUCTS);
+    }
+  }
+
+  async function fetchServicios() {
+    try {
+      const data = await getAllServicios();
+      setServicios(data);
+    } catch (err) {
+      console.error(err);
     }
   }
 
@@ -154,6 +178,70 @@ export default function Dashboard() {
     }
   }
 
+    async function handleAddProducto() {
+      try {
+        await crearProducto({ name: 'Nuevo Producto', descripcion: '', precio: 0, activo: true });
+        toast('Producto agregado');
+        fetchProducts();
+      } catch (err) {
+        console.error("Error al crear producto:", err);
+        toast('Error al crear producto');
+      }
+    }
+
+    async function handleUpdateProducto(id, field, value) {
+      try {
+        await actualizarProducto(id, { [field]: field === 'precio' ? parseInt(value) || 0 : value });
+        toast('Producto actualizado');
+        fetchProducts();
+      } catch {
+        toast('Error al actualizar');
+      }
+    }
+
+    async function handleDelProducto(id) {
+      if (!window.confirm('¿Eliminar producto?')) return;
+      try {
+        await eliminarProducto(id);
+        toast('Producto eliminado');
+        fetchProducts();
+      } catch {
+        toast('Error al eliminar');
+      }
+    }
+
+    async function handleAddServicio() {
+      try {
+        await crearServicio({ name: 'Nuevo Servicio', descripcion: '', precio: 0, duracion: 45, activo: true });
+        toast('Servicio agregado');
+        fetchServicios();
+      } catch (err) {
+        console.error("Error al crear servicio:", err);
+        toast('Error al crear servicio');
+      }
+    }
+
+    async function handleUpdateServicio(id, field, value) {
+      try {
+        await actualizarServicio(id, { [field]: field === 'precio' || field === 'duracion' ? parseInt(value) || 0 : value });
+        toast('Servicio actualizado');
+        fetchServicios();
+      } catch {
+        toast('Error al actualizar');
+      }
+    }
+
+    async function handleDelServicio(id) {
+      if (!window.confirm('¿Eliminar servicio?')) return;
+      try {
+        await eliminarServicio(id);
+        toast('Servicio eliminado');
+        fetchServicios();
+      } catch {
+        toast('Error al eliminar');
+      }
+    }
+
   if (user?.role !== 'admin' && !user?.permiso_horarios) return null;
 
   const statCards = [
@@ -167,6 +255,7 @@ export default function Dashboard() {
     user?.role === 'admin' && { id: 'clientes',       label: 'Clientes',          icon: <Users size={15} /> },
     user?.role === 'admin' && { id: 'puntos',         label: 'Puntos',             icon: <Star size={15} /> },
     user?.role === 'admin' && { id: 'productos',      label: 'Productos',          icon: <Package size={15} /> },
+    user?.role === 'admin' && { id: 'servicios',      label: 'Servicios',          icon: <Scissors size={15} /> },
     { id: 'configuracion',  label: 'Configuración',      icon: <Settings size={15} /> },
   ].filter(Boolean);
 
@@ -404,27 +493,63 @@ export default function Dashboard() {
           {activeTab === 'productos' && (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>Catálogo de Productos</h3>
-                <button className="btn-outline" style={{ padding: '6px 14px', fontSize: '0.85rem' }}>+ Agregar</button>
+                <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>Gestión de Productos</h3>
+                <button className="btn-outline" onClick={handleAddProducto} style={{ padding: '6px 14px', fontSize: '0.85rem' }}>+ Agregar Producto</button>
               </div>
               <div className="grid grid-cols-2">
-                {products.map((p, i) => (
-                  <div key={i} style={{ border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '16px' }}>
+                {products.map((p) => (
+                  <div key={p.id} style={{ border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '16px' }}>
                     <div className="input-group">
                       <label className="input-label">Nombre</label>
-                      <input type="text" className="input-field" defaultValue={p.name} />
+                      <input type="text" className="input-field" defaultValue={p.name} onBlur={(e) => handleUpdateProducto(p.id, 'name', e.target.value)} />
                     </div>
                     <div className="input-group">
                       <label className="input-label">Descripción</label>
-                      <textarea className="input-field" defaultValue={p.descripcion} rows="2" />
+                      <textarea className="input-field" defaultValue={p.descripcion} rows="2" onBlur={(e) => handleUpdateProducto(p.id, 'descripcion', e.target.value)} />
                     </div>
                     <div className="input-group">
-                      <label className="input-label">Precio</label>
-                      <input type="text" className="input-field" defaultValue={p.precio} />
+                      <label className="input-label">Precio ($)</label>
+                      <input type="number" className="input-field" defaultValue={p.precio} onBlur={(e) => handleUpdateProducto(p.id, 'precio', e.target.value)} />
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                      <button className="btn-outline" style={{ color: 'var(--danger)', borderColor: 'var(--danger)', padding: '6px 12px', fontSize: '0.8rem' }}>Eliminar</button>
-                      <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '0.8rem' }}>Guardar</button>
+                      <button onClick={() => handleDelProducto(p.id)} className="btn-outline" style={{ color: 'var(--danger)', borderColor: 'var(--danger)', padding: '6px 12px', fontSize: '0.8rem' }}>Eliminar</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── SERVICIOS ────────────────────────────────────────────── */}
+          {activeTab === 'servicios' && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>Servicios y Precios</h3>
+                <button className="btn-outline" onClick={handleAddServicio} style={{ padding: '6px 14px', fontSize: '0.85rem' }}>+ Agregar</button>
+              </div>
+              <div className="grid grid-cols-2">
+                {servicios.map((s) => (
+                  <div key={s.id} style={{ border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '16px' }}>
+                    <div className="input-group">
+                      <label className="input-label">Nombre</label>
+                      <input type="text" className="input-field" defaultValue={s.name} onBlur={(e) => handleUpdateServicio(s.id, 'name', e.target.value)} />
+                    </div>
+                    <div className="input-group">
+                      <label className="input-label">Descripción</label>
+                      <textarea className="input-field" defaultValue={s.descripcion} rows="2" onBlur={(e) => handleUpdateServicio(s.id, 'descripcion', e.target.value)} />
+                    </div>
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <div className="input-group" style={{ flex: 1 }}>
+                        <label className="input-label">Precio ($)</label>
+                        <input type="number" className="input-field" defaultValue={s.precio} onBlur={(e) => handleUpdateServicio(s.id, 'precio', e.target.value)} />
+                      </div>
+                      <div className="input-group" style={{ flex: 1 }}>
+                        <label className="input-label">Duración (min)</label>
+                        <input type="number" className="input-field" defaultValue={s.duracion} onBlur={(e) => handleUpdateServicio(s.id, 'duracion', e.target.value)} />
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                      <button onClick={() => handleDelServicio(s.id)} className="btn-outline" style={{ color: 'var(--danger)', borderColor: 'var(--danger)', padding: '6px 12px', fontSize: '0.8rem' }}>Eliminar</button>
                     </div>
                   </div>
                 ))}

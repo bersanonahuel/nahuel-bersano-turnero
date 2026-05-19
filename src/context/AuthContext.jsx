@@ -79,8 +79,8 @@ export function AuthProvider({ children }) {
   const loginAsAdmin = () => {
     const adminUser = {
       uid:    'admin',
-      name:   'Admin',
-      email:  'admin@nahuel.com',
+      name:   'Nahuel Bersano',
+      email:  'nahuel@bersano.com',
       role:   'admin',
       permiso_horarios: true,
       puntos: null,
