@@ -292,32 +292,39 @@ export default function Booking() {
                 ) : (
                   <>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-                      {generarHorarios().map(hora => {
-                        const ocupada = horasOcupadas.includes(hora);
-                        const selec   = selectedTime === hora;
-                        return (
-                          <button
-                            key={hora}
-                            disabled={ocupada}
-                            onClick={() => setTime(hora)}
-                            style={{
-                              padding: '10px 18px',
-                              borderRadius: 'var(--radius-md)',
-                              border: selec ? 'none' : '1px solid var(--border-color)',
-                              background: selec ? '#111' : ocupada ? '#f3f4f6' : '#fff',
-                              color: selec ? '#fff' : ocupada ? '#ccc' : '#111',
-                              fontWeight: '500',
-                              cursor: ocupada ? 'not-allowed' : 'pointer',
-                              fontSize: '0.9rem',
-                              textDecoration: ocupada ? 'line-through' : 'none',
-                              transition: 'all 0.15s ease',
-                              fontFamily: 'inherit',
-                            }}
-                          >
-                            {hora}
-                          </button>
-                        );
-                      })}
+                      {(() => {
+                        const horariosLibres = generarHorarios().filter(hora => !horasOcupadas.includes(hora));
+                        if (horariosLibres.length === 0) {
+                          return (
+                            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', width: '100%', padding: '10px 0' }}>
+                              No hay turnos disponibles para esta fecha. Elegí otro día.
+                            </p>
+                          );
+                        }
+                        return horariosLibres.map(hora => {
+                          const selec = selectedTime === hora;
+                          return (
+                            <button
+                              key={hora}
+                              onClick={() => setTime(hora)}
+                              style={{
+                                padding: '10px 18px',
+                                borderRadius: 'var(--radius-md)',
+                                border: selec ? 'none' : '1px solid var(--border-color)',
+                                background: selec ? '#111' : '#fff',
+                                color: selec ? '#fff' : '#111',
+                                fontWeight: '500',
+                                cursor: 'pointer',
+                                fontSize: '0.9rem',
+                                transition: 'all 0.15s ease',
+                                fontFamily: 'inherit',
+                              }}
+                            >
+                              {hora}
+                            </button>
+                          );
+                        });
+                      })()}
                     </div>
 
                     {selectedTime && (
