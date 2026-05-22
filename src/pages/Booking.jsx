@@ -293,7 +293,24 @@ export default function Booking() {
                   <>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
                       {(() => {
-                        const horariosLibres = generarHorarios().filter(hora => !horasOcupadas.includes(hora));
+                        const ahora = new Date();
+                        const esHoy = selectedDate === hoy;
+                        
+                        const horariosLibres = generarHorarios().filter(hora => {
+                          // Si ya está ocupada, la descartamos
+                          if (horasOcupadas.includes(hora)) return false;
+                          
+                          // Si es hoy, filtramos los horarios que ya pasaron
+                          if (esHoy) {
+                            const [h, m] = hora.split(':').map(Number);
+                            const horaTurno = new Date();
+                            horaTurno.setHours(h, m, 0, 0);
+                            if (horaTurno <= ahora) return false;
+                          }
+                          
+                          return true;
+                        });
+
                         if (horariosLibres.length === 0) {
                           return (
                             <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', width: '100%', padding: '10px 0' }}>
