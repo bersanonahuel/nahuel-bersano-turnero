@@ -5,20 +5,24 @@ import { getServicios } from '../lib/servicios';
 
 const galleryPhotos = [
   {
-    url: '/corte1.png',
+    url: '/corte1.jpg',
     label: 'Corte 1'
   },
   {
-    url: '/corte2.png',
+    url: '/corte2.jpg',
     label: 'Corte 2'
   },
   {
-    url: '/corte3.png',
+    url: '/corte3.jpg',
     label: 'Corte 3'
   },
   {
-    url: '/corte4.png',
+    url: '/corte4.jpg',
     label: 'Corte 4'
+  },
+  {
+    url: '/corte5.jpg',
+    label: 'Corte 5'
   },
 ];
 
