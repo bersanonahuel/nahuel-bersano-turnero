@@ -92,7 +92,7 @@ export async function getHorasOcupadas(fecha) {
     .neq('estado', 'cancelado');
 
   if (error) throw error;
-  return data.map(t => t.hora);
+  return data.map(t => t.hora.slice(0, 5));
 }
 
 /**
