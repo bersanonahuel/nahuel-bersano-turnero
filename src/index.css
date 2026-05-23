@@ -650,3 +650,188 @@ button {
   color: #111;
   margin: 0;
 }
+
+/* ==========================================================================
+   DARK THEME SPECIFIC OVERRIDES & PREMIUM STYLES
+   ========================================================================== */
+
+body.dark-theme-page {
+  background-color: #030303;
+  background-image: radial-gradient(circle at 50% -20%, #151518 0%, #030303 100%);
+  color: #ffffff;
+  transition: background-color 0.5s ease;
+}
+
+/* Navbar adaptada al tema oscuro */
+body.dark-theme-page .navbar {
+  background: rgba(8, 8, 10, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+body.dark-theme-page .logo {
+  color: #ffffff;
+}
+
+body.dark-theme-page .nav-link {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+body.dark-theme-page .nav-link:hover,
+body.dark-theme-page .nav-link.active {
+  color: #ffffff;
+}
+
+body.dark-theme-page .nav-hamburger {
+  color: #ffffff;
+}
+
+body.dark-theme-page .nav-mobile-drawer {
+  background: rgba(8, 8, 10, 0.98);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+body.dark-theme-page .nav-mobile-link {
+  color: rgba(255, 255, 255, 0.65);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+body.dark-theme-page .nav-mobile-link:hover {
+  color: #ffffff;
+}
+
+/* Footer adaptado al tema oscuro */
+body.dark-theme-page .footer {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-theme-page .footer .logo {
+  color: #ffffff;
+}
+
+body.dark-theme-page .footer p,
+body.dark-theme-page .footer a,
+body.dark-theme-page .footer li {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+body.dark-theme-page .footer a:hover {
+  color: #ffffff !important;
+}
+
+/* Estilos específicos de la cabecera de catálogo oscuro */
+.products-dark-header h1 {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 300;
+  color: #ffffff;
+  background: linear-gradient(to right, #ffffff 40%, #a1a1aa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.products-dark-header p {
+  color: #8e8e93;
+}
+
+/* Campo de búsqueda premium oscuro */
+body.dark-theme-page .search-container input {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+body.dark-theme-page .search-container input:focus {
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15);
+}
+
+/* Tarjeta premium de lujo oscura */
+body.dark-theme-page .product-card-container {
+  background: rgba(18, 18, 20, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+body.dark-theme-page .product-card-container:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.5), 0 0 30px rgba(255, 255, 255, 0.02);
+}
+
+body.dark-theme-page .product-img-wrapper {
+  background: #08080a;
+}
+
+body.dark-theme-page .product-img-wrapper::after {
+  background: linear-gradient(to bottom, transparent 60%, rgba(0,0,0,0.45));
+}
+
+body.dark-theme-page .product-details {
+  background: rgba(18, 18, 20, 0.8);
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+body.dark-theme-page .product-card-container:hover .product-details {
+  background: rgba(22, 22, 26, 0.85);
+}
+
+body.dark-theme-page .product-category {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+body.dark-theme-page .product-title {
+  color: #ffffff;
+}
+
+body.dark-theme-page .product-desc-text {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Botón Consultar en modo oscuro */
+body.dark-theme-page .product-consult-btn {
+  background: #ffffff;
+  color: #000000;
+  border-color: #ffffff;
+}
+
+body.dark-theme-page .product-consult-btn:hover {
+  background: #f3f3f5;
+  border-color: #f3f3f5;
+  box-shadow: 0 8px 24px rgba(255, 255, 255, 0.2);
+}
+
+body.dark-theme-page .product-price-row {
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+body.dark-theme-page .product-price {
+  color: #ffffff;
+}
+
+/* Animación de destello de luz sutil para las fotos */
+.product-img-wrapper::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -75%;
+  z-index: 1;
+  display: block;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.12) 100%);
+  transform: skewX(-25deg);
+  pointer-events: none;
+}
+
+.product-card-container:hover .product-img-wrapper::before {
+  animation: shine 0.75s;
+}
+
+@keyframes shine {
+  100% {
+    left: 125%;
+  }
+}

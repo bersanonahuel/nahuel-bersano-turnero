@@ -8,6 +8,14 @@ export default function Products() {
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
 
+  // Activa el tema oscuro de lujo exclusivo para esta página
+  useEffect(() => {
+    document.body.classList.add('dark-theme-page');
+    return () => {
+      document.body.classList.remove('dark-theme-page');
+    };
+  }, []);
+
   useEffect(() => {
     async function fetchProds() {
       try {
@@ -38,12 +46,12 @@ export default function Products() {
 
   return (
     <div className="container section">
-      <div className="text-center mb-8">
+      <div className="text-center mb-8 products-dark-header">
         <h1 style={{ fontSize: '2.5rem', marginBottom: '10px', letterSpacing: '-0.02em' }}>Catálogo de Productos</h1>
         <p style={{ color: 'var(--text-muted)' }}>Exhibición de artículos exclusivos para el cuidado personal en el salón.</p>
       </div>
 
-      <div style={{ maxWidth: '500px', margin: '0 auto 40px', position: 'relative' }}>
+      <div className="search-container" style={{ maxWidth: '500px', margin: '0 auto 40px', position: 'relative' }}>
         <Search size={20} style={{ position: 'absolute', left: '16px', top: '16px', color: 'var(--text-muted)' }} />
         <input 
           type="text" 
