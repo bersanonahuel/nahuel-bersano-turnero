@@ -414,8 +414,13 @@ button {
   .grid-cols-2,
   .grid-cols-3 { grid-template-columns: 1fr; }
   
-  /* Los productos (grid-cols-4) se verán en 2 columnas en celular para aprovechar mejor el espacio */
-  .grid-cols-4 { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  /* En móvil, los productos se ven en 1 sola columna para apreciar al máximo el producto */
+  .grid-cols-4 { 
+    grid-template-columns: 1fr; 
+    gap: 32px; 
+    max-width: 420px; 
+    margin: 0 auto; 
+  }
 
   /* Footer */
   .footer { padding: 32px 0; margin-top: 48px; }
@@ -467,13 +472,18 @@ button {
               border-color 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
   position: relative;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
 }
 
 .product-card-container:hover {
   transform: translateY(-8px);
-  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
   border-color: #111111;
+}
+
+.product-card-container:active {
+  transform: translateY(-4px) scale(0.985);
+  transition: transform 0.15s ease;
 }
 
 .product-img-wrapper {
@@ -508,24 +518,27 @@ button {
 
 .product-badge {
   position: absolute;
-  top: 12px;
-  left: 12px;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(8px);
-  color: #111;
-  padding: 4px 10px;
+  top: 16px;
+  left: 16px;
+  background: rgba(17, 17, 17, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #ffffff;
+  padding: 6px 12px;
   border-radius: var(--radius-full);
   font-size: 0.65rem;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border: 1px solid var(--border-color);
+  letter-spacing: 0.08em;
+  border: 1px solid rgba(255, 255, 255, 0.15);
   z-index: 2;
-  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 .product-card-container:hover .product-badge {
   transform: translateY(-2px);
+  background: rgba(0, 0, 0, 0.9);
 }
 
 .product-details {
@@ -562,11 +575,11 @@ button {
 
 .product-desc {
   color: var(--text-muted);
-  font-size: 0.85rem;
+  font-size: 0.83rem;
   line-height: 1.45;
   margin-bottom: 16px;
   display: -webkit-box;
-  WebkitLineClamp: 3;
+  WebkitLineClamp: 2;
   WebkitBoxOrient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
