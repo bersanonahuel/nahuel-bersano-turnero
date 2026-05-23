@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Search } from 'lucide-react';
+import { Search, ChevronDown, MessageCircle } from 'lucide-react';
 import { getProductos } from '../lib/productos';
 
 export default function Products() {
   const [searchTerm, setSearchTerm] = useState('');
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState(null);
 
   useEffect(() => {
     async function fetchProds() {
@@ -23,7 +24,13 @@ export default function Products() {
 
   const filteredProducts = products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
-  const handleWhatsAppQuery = (productName) => {
+  const toggleExpand = (id, e) => {
+    e.stopPropagation();
+    setExpandedId(prev => prev === id ? null : id);
+  };
+
+  const handleWhatsAppQuery = (productName, e) => {
+    e.stopPropagation(); // Evita que se abra/cierre la tarjeta
     const phone = '5493472436713'; // Teléfono de contacto de Nahuel Bersano
     const text = encodeURIComponent(`¡Hola! Quisiera consultar por el producto "${productName}" que vi en el catálogo.`);
     window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
@@ -54,35 +61,59 @@ export default function Products() {
         ) : filteredProducts.length === 0 ? (
           <p className="text-center" style={{ gridColumn: 'span 4', color: 'var(--text-muted)' }}>No se encontraron productos.</p>
         ) : (
-          filteredProducts.map((product, index) => (
-            <div 
-              key={product.id} 
-              className="product-card-container animate-fade-in-up" 
-              style={{ animationDelay: `${index * 75}ms` }}
-              onClick={() => handleWhatsAppQuery(product.name)}
-              title="Click para consultar por WhatsApp"
-            >
-              <div className="product-badge">Premium</div>
-              <div className="product-img-wrapper">
-                <img 
-                  src={product.imagen_url || 'https://images.unsplash.com/photo-1599305090598-fe179d501227?w=500&auto=format&fit=crop'} 
-                  alt={product.name} 
-                  className="product-img" 
-                />
-              </div>
-              <div className="product-details">
-                <span className="product-category">Cuidado Personal</span>
-                <h3 className="product-title">{product.name}</h3>
-                <p className="product-desc">{product.descripcion}</p>
-                <div className="product-price-row">
-                  <p className="product-price">${product.precio}</p>
-                  <span className="product-action-btn">
-                    Consultar
-                  </span>
+          filteredProducts.map((product, index) => {
+            const isExpanded = expandedId === product.id;
+            return (
+              <div 
+                key={product.id} 
+                className={`product-card-container animate-fade-in-up ${isExpanded ? 'is-expanded' : ''}`} 
+                style={{ animationDelay: `${index * 75}ms` }}
+                onClick={(e) => toggleExpand(product.id, e)}
+              >
+                <div className="product-badge">Premium</div>
+                <div className="product-img-wrapper">
+                  <img 
+                    src={product.imagen_url || 'https://images.unsplash.com/photo-1599305090598-fe179d501227?w=500&auto=format&fit=crop'} 
+                    alt={product.name} 
+                    className="product-img" 
+                  />
+                </div>
+                <div className="product-details">
+                  <span className="product-category">Cuidado Personal</span>
+                  <h3 className="product-title">{product.name}</h3>
+                  
+                  {/* Contenedor colapsable con animación */}
+                  <div className={`product-desc-container ${isExpanded ? 'is-expanded' : ''}`}>
+                    <div className="product-desc-content">
+                      <p className="product-desc-text">
+                        {product.descripcion || 'Sin descripción disponible.'}
+                      </p>
+                      <button 
+                        className="product-consult-btn"
+                        onClick={(e) => handleWhatsAppQuery(product.name, e)}
+                      >
+                        <MessageCircle size={15} /> Consultar por WhatsApp
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="product-price-row">
+                    <p className="product-price">${product.precio}</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: '600' }}>
+                      <span>{isExpanded ? 'Cerrar' : 'Ver más'}</span>
+                      <ChevronDown 
+                        size={15} 
+                        style={{ 
+                          transform: isExpanded ? 'rotate(180deg)' : 'rotate(0)', 
+                          transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)' 
+                        }} 
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>
