@@ -189,6 +189,34 @@ export default function Dashboard() {
       }
     }
 
+    async function handleUploadImage(id, file) {
+      if (!file) return;
+      try {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${id}-${Math.random()}.${fileExt}`;
+        const filePath = `productos/${fileName}`;
+        
+        toast('Subiendo imagen...');
+
+        const { error: uploadError } = await supabase.storage
+          .from('productos')
+          .upload(filePath, file);
+
+        if (uploadError) {
+          throw uploadError;
+        }
+
+        const { data } = supabase.storage.from('productos').getPublicUrl(filePath);
+        
+        // Use the existing handleUpdateProducto to update the imagen_url
+        await handleUpdateProducto(id, 'imagen_url', data.publicUrl);
+        toast('Imagen actualizada con éxito');
+      } catch (err) {
+        console.error('Error al subir imagen:', err);
+        toast('Error al subir imagen. ¿Existe el bucket "productos"?');
+      }
+    }
+
     async function handleUpdateProducto(id, field, value) {
       try {
         await actualizarProducto(id, { [field]: field === 'precio' ? parseInt(value) || 0 : value });
@@ -513,6 +541,21 @@ export default function Dashboard() {
                     <div className="input-group">
                       <label className="input-label">Precio ($)</label>
                       <input type="number" className="input-field" defaultValue={p.precio} onBlur={(e) => handleUpdateProducto(p.id, 'precio', e.target.value)} />
+                    </div>
+                    <div className="input-group">
+                      <label className="input-label">Imagen</label>
+                      {p.imagen_url && (
+                        <div style={{ marginBottom: '8px' }}>
+                          <img src={p.imagen_url} alt="Producto" style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: 'var(--radius-sm)' }} />
+                        </div>
+                      )}
+                      <input 
+                        type="file" 
+                        accept="image/*"
+                        className="input-field" 
+                        style={{ padding: '6px' }}
+                        onChange={(e) => handleUploadImage(p.id, e.target.files[0])} 
+                      />
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                       <button onClick={() => handleDelProducto(p.id)} className="btn-outline" style={{ color: 'var(--danger)', borderColor: 'var(--danger)', padding: '6px 12px', fontSize: '0.8rem' }}>Eliminar</button>
