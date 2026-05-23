@@ -23,6 +23,12 @@ export default function Products() {
 
   const filteredProducts = products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
+  const handleWhatsAppQuery = (productName) => {
+    const phone = '5493472436713'; // Teléfono de contacto de Nahuel Bersano
+    const text = encodeURIComponent(`¡Hola! Quisiera consultar por el producto "${productName}" que vi en el catálogo.`);
+    window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
+  };
+
   return (
     <div className="container section">
       <div className="text-center mb-8">
@@ -43,23 +49,41 @@ export default function Products() {
       </div>
 
       <div className="grid grid-cols-4" style={{ gap: '24px' }}>
-        {loading ? <p className="text-center" style={{ gridColumn: 'span 4' }}>Cargando productos...</p> : filteredProducts.map(product => (
-          <div key={product.id} className="card" style={{ padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)' }}>
-            <img src={product.imagen_url || 'https://images.unsplash.com/photo-1599305090598-fe179d501227?w=500&auto=format&fit=crop'} alt={product.name} style={{ width: '100%', aspectRatio: '1 / 1', objectFit: 'cover' }} />
-            <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 'bold', marginBottom: '6px' }}>
-                Producto
-              </span>
-              <h3 style={{ marginBottom: '8px', fontSize: '1.05rem', fontWeight: '700', lineHeight: '1.2' }}>{product.name}</h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.4', marginBottom: '12px', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                {product.descripcion}
-              </p>
-              <p style={{ fontSize: '1.15rem', fontWeight: '800', color: '#111', marginTop: 'auto', borderTop: '1px solid var(--border-color)', paddingTop: '12px', marginBottom: '0' }}>
-                ${product.precio}
-              </p>
+        {loading ? (
+          <p className="text-center" style={{ gridColumn: 'span 4' }}>Cargando productos...</p>
+        ) : filteredProducts.length === 0 ? (
+          <p className="text-center" style={{ gridColumn: 'span 4', color: 'var(--text-muted)' }}>No se encontraron productos.</p>
+        ) : (
+          filteredProducts.map((product, index) => (
+            <div 
+              key={product.id} 
+              className="product-card-container animate-fade-in-up" 
+              style={{ animationDelay: `${index * 75}ms` }}
+              onClick={() => handleWhatsAppQuery(product.name)}
+              title="Click para consultar por WhatsApp"
+            >
+              <div className="product-badge">Premium</div>
+              <div className="product-img-wrapper">
+                <img 
+                  src={product.imagen_url || 'https://images.unsplash.com/photo-1599305090598-fe179d501227?w=500&auto=format&fit=crop'} 
+                  alt={product.name} 
+                  className="product-img" 
+                />
+              </div>
+              <div className="product-details">
+                <span className="product-category">Cuidado Personal</span>
+                <h3 className="product-title">{product.name}</h3>
+                <p className="product-desc">{product.descripcion}</p>
+                <div className="product-price-row">
+                  <p className="product-price">${product.precio}</p>
+                  <span className="product-action-btn">
+                    Consultar
+                  </span>
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );
