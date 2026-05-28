@@ -3,7 +3,7 @@ import { Calendar, Users, Check, X, Clock, Settings, Package, TrendingUp, Star, 
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { getProximosTurnos, actualizarEstadoTurno, sumarPuntos, getHorariosConfig, guardarHorariosConfig } from '../lib/turnos';
+import { getProximosTurnos, getTurnosFijos, actualizarEstadoTurno, sumarPuntos, getHorariosConfig, guardarHorariosConfig } from '../lib/turnos';
 import { getAllProductos, crearProducto, actualizarProducto, eliminarProducto } from '../lib/productos';
 import { getAllServicios, crearServicio, actualizarServicio, eliminarServicio } from '../lib/servicios';
 
@@ -13,6 +13,7 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('turnos');
 
   const [turnosHoy,     setTurnosHoy]     = useState([]);
+  const [turnosFijos,   setTurnosFijos]   = useState([]);
   const [clientes,      setClientes]      = useState([]);
   const [products,      setProducts]      = useState([]);
   const [servicios,     setServicios]     = useState([]);
@@ -75,8 +76,11 @@ export default function Dashboard() {
     try {
       const data = await getProximosTurnos();
       setTurnosHoy(data);
+      const fijos = await getTurnosFijos();
+      setTurnosFijos(fijos);
     } catch {
-      setTurnosHoy(MOCK_TURNOS); // fallback a mock si Supabase no está configurado
+      setTurnosHoy([]); // En caso de error, mostrar array vacío o mocks
+      setTurnosFijos([]);
     } finally {
       setLoadingTurnos(false);
     }
@@ -280,6 +284,7 @@ export default function Dashboard() {
 
   const TABS = [
     { id: 'turnos',         label: 'Próximos Turnos',    icon: <Clock size={15} /> },
+    user?.role === 'admin' && { id: 'turnos-fijos',   label: 'Turnos Fijos',      icon: <RefreshCw size={15} /> },
     user?.role === 'admin' && { id: 'clientes',       label: 'Clientes',          icon: <Users size={15} /> },
     user?.role === 'admin' && { id: 'puntos',         label: 'Puntos',             icon: <Star size={15} /> },
     user?.role === 'admin' && { id: 'productos',      label: 'Productos',          icon: <Package size={15} /> },
@@ -411,6 +416,61 @@ export default function Dashboard() {
                                 <button onClick={() => handleEstado(turno.id, turno.cliente_uid, 'cancelado')} style={{ color: 'var(--danger)' }} title="Cancelar"><X size={18} /></button>
                               </>
                             )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── TURNOS FIJOS ────────────────────────────────────────── */}
+          {activeTab === 'turnos-fijos' && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>Turnos Fijos (Recurrentes)</h3>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{turnosFijos.length} fijos</span>
+              </div>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '16px' }}>
+                Estos turnos se reservan automáticamente todas las semanas en el mismo horario. Para eliminar un turno fijo recurrente, debes cancelarlo.
+              </p>
+              {loadingTurnos ? (
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Cargando turnos fijos...</p>
+              ) : turnosFijos.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No hay turnos fijos registrados.</p>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '560px' }}>
+                    <thead>
+                      <tr style={{ textAlign: 'left', color: 'var(--text-muted)', fontSize: '0.82rem', borderBottom: '1px solid var(--border-color)' }}>
+                        <th style={{ padding: '10px 0' }}>Día y Hora (Original)</th>
+                        <th style={{ padding: '10px 0' }}>Cliente</th>
+                        <th style={{ padding: '10px 0' }}>Servicio</th>
+                        <th style={{ padding: '10px 0', textAlign: 'right' }}>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {turnosFijos.map(turno => (
+                        <tr key={turno.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                          <td style={{ padding: '14px 0', fontWeight: '600' }}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <Calendar size={14} /> {turno.fecha.split('-').reverse().join('/')}
+                            </span>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                              <Clock size={14} /> {turno.hora}
+                            </span>
+                          </td>
+                          <td style={{ padding: '14px 0', fontSize: '0.95rem' }}>{turno.cliente_name}</td>
+                          <td style={{ padding: '14px 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                            <div>{turno.servicio}</div>
+                            <div style={{ fontSize: '0.75rem', color: '#888', marginTop: '2px' }}>
+                              Duración: {turno.duracion ?? 45} min
+                            </div>
+                          </td>
+                          <td style={{ padding: '14px 0', textAlign: 'right' }}>
+                            <button onClick={() => handleEstado(turno.id, turno.cliente_uid, 'cancelado')} style={{ color: 'var(--danger)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '4px', marginLeft: 'auto' }} title="Cancelar Turno Fijo Permanente"><X size={16} /> Cancelar Permanente</button>
                           </td>
                         </tr>
                       ))}

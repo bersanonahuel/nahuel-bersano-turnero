@@ -66,15 +66,81 @@ export async function getTodosTurnos() {
 
 /**
  * Obtiene los próximos turnos a partir de hoy (para el panel admin).
+ * Incluye turnos normales futuros y calcula la próxima ocurrencia de los turnos fijos.
  */
 export async function getProximosTurnos() {
-  const hoy = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  const hoyStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  const hoyDate = new Date(hoyStr + 'T00:00:00');
+
+  // 1. Obtener turnos normales desde hoy
+  const { data: normales, error: errNorm } = await supabase
+    .from('turnos')
+    .select('*')
+    .gte('fecha', hoyStr)
+    .neq('estado', 'cancelado');
+
+  if (errNorm) throw errNorm;
+
+  // 2. Obtener todos los turnos fijos (activos)
+  const { data: fijos, error: errFijos } = await supabase
+    .from('turnos')
+    .select('*')
+    .eq('es_fijo', true)
+    .neq('estado', 'cancelado');
+
+  if (errFijos) throw errFijos;
+
+  const result = [...normales];
+  const resultIds = new Set(normales.map(t => t.id));
+
+  // Procesar turnos fijos para que aparezcan en la fecha correcta (próxima ocurrencia)
+  for (const fijo of fijos) {
+    if (!resultIds.has(fijo.id)) {
+      // Si la fecha original es en el pasado, calcular el próximo día de la semana que coincide
+      const originalDate = new Date(fijo.fecha + 'T00:00:00');
+      if (originalDate < hoyDate) {
+        const dayOfWeek = originalDate.getDay();
+        const nextDate = new Date(hoyDate);
+        // Avanzar hasta encontrar el mismo día de la semana
+        while (nextDate.getDay() !== dayOfWeek) {
+          nextDate.setDate(nextDate.getDate() + 1);
+        }
+        
+        // Crear una copia para mostrar en "Próximos Turnos" con la fecha actualizada
+        result.push({
+          ...fijo,
+          fecha: nextDate.toISOString().split('T')[0],
+          // Opcional: mostrar siempre como pendiente para la nueva semana, 
+          // aunque el original esté confirmado? Lo dejamos como está para no perder el original.
+        });
+      } else {
+        result.push(fijo);
+      }
+      resultIds.add(fijo.id);
+    }
+  }
+
+  // Ordenar por fecha y luego por hora
+  result.sort((a, b) => {
+    if (a.fecha === b.fecha) {
+      return a.hora.localeCompare(b.hora);
+    }
+    return a.fecha.localeCompare(b.fecha);
+  });
+
+  return result;
+}
+
+/**
+ * Obtiene todos los turnos fijos activos.
+ */
+export async function getTurnosFijos() {
   const { data, error } = await supabase
     .from('turnos')
     .select('*')
-    .gte('fecha', hoy)
-    .order('fecha', { ascending: true })
-    .order('hora', { ascending: true });
+    .eq('es_fijo', true)
+    .neq('estado', 'cancelado')
+    .order('fecha', { ascending: true });
 
   if (error) throw error;
   return data;
