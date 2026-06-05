@@ -151,14 +151,35 @@ export async function getTurnosFijos() {
  * @returns {string[]} Array de horas ocupadas, ej: ["10:00", "11:30"]
  */
 export async function getHorasOcupadas(fecha) {
+  // Obtener turnos no cancelados en esa fecha específica o cualquier turno fijo no cancelado
   const { data, error } = await supabase
     .from('turnos')
-    .select('hora')
-    .eq('fecha', fecha)
-    .neq('estado', 'cancelado');
+    .select('hora, fecha, es_fijo')
+    .neq('estado', 'cancelado')
+    .or(`fecha.eq.${fecha},es_fijo.eq.true`);
 
   if (error) throw error;
-  return data.map(t => t.hora.slice(0, 5));
+
+  const targetDayOfWeek = new Date(fecha + 'T12:00:00').getDay();
+  const occupiedSet = new Set();
+
+  for (const t of data) {
+    const horaStr = t.hora.slice(0, 5);
+    if (t.fecha === fecha) {
+      occupiedSet.add(horaStr);
+    } else if (t.es_fijo) {
+      // Si el turno fijo comenzó antes o el mismo día consultado,
+      // y coincide el día de la semana, se considera ocupado.
+      if (t.fecha <= fecha) {
+        const fixedDayOfWeek = new Date(t.fecha + 'T12:00:00').getDay();
+        if (fixedDayOfWeek === targetDayOfWeek) {
+          occupiedSet.add(horaStr);
+        }
+      }
+    }
+  }
+
+  return Array.from(occupiedSet);
 }
 
 /**

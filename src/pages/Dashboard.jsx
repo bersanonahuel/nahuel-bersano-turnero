@@ -357,72 +357,115 @@ export default function Dashboard() {
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Cargando turnos...</p>
               ) : turnosHoy.length === 0 ? (
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No hay turnos próximos.</p>
-              ) : (
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '560px' }}>
-                    <thead>
-                      <tr style={{ textAlign: 'left', color: 'var(--text-muted)', fontSize: '0.82rem', borderBottom: '1px solid var(--border-color)' }}>
-                        <th style={{ padding: '10px 0' }}>Fecha y Hora</th>
-                        <th style={{ padding: '10px 0' }}>Cliente</th>
-                        <th style={{ padding: '10px 0' }}>Servicio</th>
-                        <th style={{ padding: '10px 0' }}>Estado</th>
-                        <th style={{ padding: '10px 0', textAlign: 'right' }}>Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {turnosHoy.map(turno => (
-                        <tr key={turno.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                          <td style={{ padding: '14px 0', fontWeight: '600' }}>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <Calendar size={14} /> {turno.fecha.split('-').reverse().join('/')}
-                            </span>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                              <Clock size={14} /> {turno.hora}
-                            </span>
-                          </td>
-                          <td style={{ padding: '14px 0', fontSize: '0.95rem' }}>{turno.cliente_name}</td>
-                          <td style={{ padding: '14px 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                            <div>{turno.servicio}</div>
-                            <div style={{ fontSize: '0.75rem', color: '#888', marginTop: '2px' }}>
-                              Duración: {turno.duracion ?? 45} min
-                              {turno.es_fijo && (
-                                <span style={{
-                                  marginLeft: '8px',
-                                  padding: '2px 6px',
-                                  borderRadius: '3px',
-                                  fontSize: '0.65rem',
-                                  fontWeight: '700',
-                                  background: '#e0f2fe',
-                                  color: '#0369a1',
-                                }}>
-                                  FIJO
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td style={{ padding: '14px 0' }}>
+              ) : (() => {
+                const turnosAgrupados = turnosHoy.reduce((groups, turno) => {
+                  const date = turno.fecha;
+                  if (!groups[date]) {
+                    groups[date] = [];
+                  }
+                  groups[date].push(turno);
+                  return groups;
+                }, {});
+
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                    {Object.keys(turnosAgrupados).map(fecha => {
+                      const turnosDelDia = turnosAgrupados[fecha];
+                      const cabeceraText = formatFechaCabecera(fecha);
+                      
+                      return (
+                        <div key={fecha} style={{ border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: '16px', background: '#fff', boxShadow: 'var(--shadow-subtle)' }}>
+                          {/* Cabecera del día */}
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            paddingBottom: '12px',
+                            borderBottom: '1px solid var(--border-color)',
+                            marginBottom: '12px'
+                          }}>
+                            <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '700', color: '#111' }}>
+                              {cabeceraText}
+                            </h4>
                             <span style={{
-                              padding: '3px 10px', borderRadius: 'var(--radius-full)', fontSize: '0.75rem', fontWeight: '600',
-                              background: turno.estado === 'confirmado' ? '#dcfce7' : turno.estado === 'cancelado' ? '#fee2e2' : '#f3f4f6',
-                              color:      turno.estado === 'confirmado' ? '#16a34a' : turno.estado === 'cancelado' ? '#dc2626' : '#6b7280',
+                              fontSize: '0.75rem',
+                              fontWeight: '700',
+                              background: '#f1f5f9',
+                              color: '#475569',
+                              padding: '2px 8px',
+                              borderRadius: 'var(--radius-full)'
                             }}>
-                              {turno.estado.toUpperCase()}
+                              {turnosDelDia.length} {turnosDelDia.length === 1 ? 'turno' : 'turnos'}
                             </span>
-                          </td>
-                          <td style={{ padding: '14px 0', textAlign: 'right' }}>
-                            {turno.estado === 'pendiente' && (
-                              <>
-                                <button onClick={() => handleEstado(turno.id, turno.cliente_uid, 'confirmado')} style={{ color: 'var(--success)', marginRight: '12px' }} title="Confirmar"><Check size={18} /></button>
-                                <button onClick={() => handleEstado(turno.id, turno.cliente_uid, 'cancelado')} style={{ color: 'var(--danger)' }} title="Cancelar"><X size={18} /></button>
-                              </>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                          </div>
+
+                          <div style={{ overflowX: 'auto' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '500px' }}>
+                              <thead>
+                                <tr style={{ textAlign: 'left', color: 'var(--text-muted)', fontSize: '0.8rem', borderBottom: '1px solid var(--border-color)' }}>
+                                  <th style={{ padding: '8px 0', width: '90px' }}>Hora</th>
+                                  <th style={{ padding: '8px 0' }}>Cliente</th>
+                                  <th style={{ padding: '8px 0' }}>Servicio</th>
+                                  <th style={{ padding: '8px 0' }}>Estado</th>
+                                  <th style={{ padding: '8px 0', textAlign: 'right' }}>Acciones</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {turnosDelDia.map(turno => (
+                                  <tr key={turno.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                    <td style={{ padding: '12px 0', fontWeight: '600' }}>
+                                      <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <Clock size={13} style={{ color: 'var(--text-muted)' }} /> {turno.hora.slice(0, 5)}
+                                      </span>
+                                    </td>
+                                    <td style={{ padding: '12px 0', fontSize: '0.9rem', fontWeight: '500' }}>{turno.cliente_name}</td>
+                                    <td style={{ padding: '12px 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                                      <div>{turno.servicio}</div>
+                                      <div style={{ fontSize: '0.72rem', color: '#888', marginTop: '2px' }}>
+                                        Duración: {turno.duracion ?? 45} min
+                                        {turno.es_fijo && (
+                                          <span style={{
+                                            marginLeft: '8px',
+                                            padding: '2px 6px',
+                                            borderRadius: '3px',
+                                            fontSize: '0.62rem',
+                                            fontWeight: '700',
+                                            background: '#e0f2fe',
+                                            color: '#0369a1',
+                                          }}>
+                                            FIJO
+                                          </span>
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td style={{ padding: '12px 0' }}>
+                                      <span style={{
+                                        padding: '2px 8px', borderRadius: 'var(--radius-full)', fontSize: '0.7rem', fontWeight: '600',
+                                        background: turno.estado === 'confirmado' ? '#dcfce7' : turno.estado === 'cancelado' ? '#fee2e2' : '#f3f4f6',
+                                        color:      turno.estado === 'confirmado' ? '#16a34a' : turno.estado === 'cancelado' ? '#dc2626' : '#6b7280',
+                                      }}>
+                                        {turno.estado.toUpperCase()}
+                                      </span>
+                                    </td>
+                                    <td style={{ padding: '12px 0', textAlign: 'right' }}>
+                                      {turno.estado === 'pendiente' && (
+                                        <div style={{ display: 'inline-flex', gap: '10px' }}>
+                                          <button onClick={() => handleEstado(turno.id, turno.cliente_uid, 'confirmado')} style={{ color: 'var(--success)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} title="Confirmar"><Check size={16} /></button>
+                                          <button onClick={() => handleEstado(turno.id, turno.cliente_uid, 'cancelado')} style={{ color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} title="Cancelar"><X size={16} /></button>
+                                        </div>
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </div>
           )}
 
@@ -958,4 +1001,24 @@ function getLunes(fecha) {
   const diff = d.getDate() - day + (day === 0 ? -6 : 1);
   d.setDate(diff);
   return d.toISOString().split('T')[0];
+}
+
+function formatFechaCabecera(fechaStr) {
+  const hoyStr = new Date().toISOString().split('T')[0];
+  
+  const mananaDate = new Date();
+  mananaDate.setDate(mananaDate.getDate() + 1);
+  const mananaStr = mananaDate.toISOString().split('T')[0];
+  
+  const dateObj = new Date(fechaStr + 'T12:00:00');
+  const formattedDate = dateObj.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
+  const capitalized = formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1);
+  
+  if (fechaStr === hoyStr) {
+    return `Hoy — ${capitalized}`;
+  } else if (fechaStr === mananaStr) {
+    return `Mañana — ${capitalized}`;
+  }
+  
+  return capitalized;
 }
