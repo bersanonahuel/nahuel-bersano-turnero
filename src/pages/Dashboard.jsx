@@ -448,12 +448,14 @@ export default function Dashboard() {
                                       </span>
                                     </td>
                                     <td style={{ padding: '12px 0', textAlign: 'right' }}>
-                                      {turno.estado === 'pendiente' && (
-                                        <div style={{ display: 'inline-flex', gap: '10px' }}>
+                                      <div style={{ display: 'inline-flex', gap: '10px' }}>
+                                        {turno.estado !== 'confirmado' && (
                                           <button onClick={() => handleEstado(turno.id, turno.cliente_uid, 'confirmado')} style={{ color: 'var(--success)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} title="Confirmar"><Check size={16} /></button>
+                                        )}
+                                        {turno.estado !== 'cancelado' && (
                                           <button onClick={() => handleEstado(turno.id, turno.cliente_uid, 'cancelado')} style={{ color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} title="Cancelar"><X size={16} /></button>
-                                        </div>
-                                      )}
+                                        )}
+                                      </div>
                                     </td>
                                   </tr>
                                 ))}
