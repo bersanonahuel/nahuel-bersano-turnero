@@ -7,7 +7,7 @@ export default function Products() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
-  const [activeCategory, setActiveCategory] = useState('Mujer');
+  const [activeCategory, setActiveCategory] = useState('Hombre');
 
   // Activa el tema oscuro de lujo exclusivo para esta página
   useEffect(() => {
