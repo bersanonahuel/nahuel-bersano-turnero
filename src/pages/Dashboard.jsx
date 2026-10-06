@@ -184,7 +184,7 @@ export default function Dashboard() {
 
     async function handleAddProducto() {
       try {
-        await crearProducto({ name: 'Nuevo Producto', descripcion: '', precio: 0, activo: true });
+        await crearProducto({ name: 'Nuevo Producto', descripcion: '', precio: 0, categoria: 'Hombre', activo: true });
         toast('Producto agregado');
         fetchProducts();
       } catch (err) {
@@ -642,6 +642,14 @@ export default function Dashboard() {
                     <div className="input-group">
                       <label className="input-label">Descripción</label>
                       <textarea className="input-field" defaultValue={p.descripcion} rows="2" onBlur={(e) => handleUpdateProducto(p.id, 'descripcion', e.target.value)} />
+                    </div>
+                    <div className="input-group">
+                      <label className="input-label">Categoría</label>
+                      <select className="input-field" defaultValue={p.categoria || 'Hombre'} onChange={(e) => handleUpdateProducto(p.id, 'categoria', e.target.value)}>
+                        <option value="Hombre">Hombre</option>
+                        <option value="Mujer">Mujer</option>
+                        <option value="Unisex">Unisex</option>
+                      </select>
                     </div>
                     <div className="input-group">
                       <label className="input-label">Precio ($)</label>

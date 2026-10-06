@@ -7,6 +7,7 @@ export default function Products() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
+  const [activeCategory, setActiveCategory] = useState('Mujer');
 
   // Activa el tema oscuro de lujo exclusivo para esta página
   useEffect(() => {
@@ -30,7 +31,11 @@ export default function Products() {
     fetchProds();
   }, []);
 
-  const filteredProducts = products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredProducts = products.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const cat = p.categoria || 'Hombre'; // Por defecto Hombre si no tiene categoría
+    return matchesSearch && cat === activeCategory;
+  });
 
   const toggleExpand = (id, e) => {
     e.stopPropagation();
@@ -61,6 +66,27 @@ export default function Products() {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginBottom: '40px' }}>
+        {['Mujer', 'Hombre', 'Unisex'].map(cat => (
+          <button
+            key={cat}
+            onClick={() => setActiveCategory(cat)}
+            style={{
+              padding: '10px 24px',
+              borderRadius: 'var(--radius-full)',
+              fontWeight: '600',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              background: activeCategory === cat ? '#fff' : 'transparent',
+              color: activeCategory === cat ? '#000' : '#fff',
+              transition: 'all 0.3s ease',
+              cursor: 'pointer'
+            }}
+          >
+            {cat}
+          </button>
+        ))}
       </div>
 
       <div className="grid grid-cols-4" style={{ gap: '24px' }}>
