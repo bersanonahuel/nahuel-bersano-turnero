@@ -848,3 +848,8 @@ body.dark-theme-page .product-price {
     left: 125%;
   }
 }
+
+/* Agrandar imagen al preseleccionar (expandir) el producto */
+.product-card-container.is-expanded .product-img {
+  transform: scale(1.15) !important;
+}
