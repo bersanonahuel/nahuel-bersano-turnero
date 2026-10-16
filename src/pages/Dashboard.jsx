@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Users, Check, X, Clock, Settings, Package, TrendingUp, Star, RefreshCw, ShieldAlert, ShieldCheck, Scissors } from 'lucide-react';
+import { Calendar, Users, Check, X, Clock, Settings, Package, TrendingUp, Star, RefreshCw, ShieldAlert, ShieldCheck, Scissors, Plus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { getProximosTurnos, getTurnosFijos, actualizarEstadoTurno, sumarPuntos, getHorariosConfig, guardarHorariosConfig } from '../lib/turnos';
+import { getProximosTurnos, getTurnosFijos, crearTurno, actualizarEstadoTurno, actualizarTurnoFijo, getHorasOcupadas, sumarPuntos, getHorariosConfig, guardarHorariosConfig, getFechaLocalISO } from '../lib/turnos';
 import { getAllProductos, crearProducto, actualizarProducto, eliminarProducto } from '../lib/productos';
 import { getAllServicios, crearServicio, actualizarServicio, eliminarServicio } from '../lib/servicios';
 
@@ -21,6 +21,20 @@ export default function Dashboard() {
   const [loadingTurnos, setLoadingTurnos] = useState(true);
   const [loadingCli,    setLoadingCli]    = useState(true);
   const [toastMsg,      setToastMsg]      = useState('');
+
+  // Estado para otorgar un nuevo Turno Fijo desde el panel admin
+  const [showNuevoFijo, setShowNuevoFijo] = useState(false);
+  const [modoClienteFijo, setModoClienteFijo] = useState('registrado'); // 'registrado' | 'manual'
+  const [nuevoFijo, setNuevoFijo] = useState({
+    cliente_uid: '',
+    cliente_name: '',
+    cliente_email: '',
+    servicio_id: '',
+    fecha: getFechaLocalISO(),
+    hora: '10:00',
+  });
+  const [horasOcupadasFijo, setHorasOcupadasFijo] = useState([]);
+  const [creandoFijo, setCreandoFijo] = useState(false);
 
   const [configState, setConfigState] = useState({
     duracion: 45,
@@ -71,6 +85,13 @@ export default function Dashboard() {
     };
   }, [user]);
 
+  useEffect(() => {
+    if (!nuevoFijo.fecha || !showNuevoFijo) return;
+    getHorasOcupadas(nuevoFijo.fecha)
+      .then(setHorasOcupadasFijo)
+      .catch(() => setHorasOcupadasFijo([]));
+  }, [nuevoFijo.fecha, showNuevoFijo]);
+
   async function fetchTurnos() {
     setLoadingTurnos(true);
     try {
@@ -104,7 +125,7 @@ export default function Dashboard() {
 
   async function fetchStats() {
     const hoy   = new Date();
-    const isoHoy = hoy.toISOString().split('T')[0];
+    const isoHoy = getFechaLocalISO(hoy);
     const lunesISO = getLunes(hoy);
     const inicioMes = `${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}-01`;
     const inicioAnio = `${hoy.getFullYear()}-01-01`;
@@ -134,6 +155,9 @@ export default function Dashboard() {
     try {
       const data = await getAllServicios();
       setServicios(data);
+      if (data && data.length > 0) {
+        setNuevoFijo(prev => ({ ...prev, servicio_id: prev.servicio_id || data[0].id }));
+      }
     } catch (err) {
       console.error(err);
     }
@@ -143,12 +167,128 @@ export default function Dashboard() {
   async function handleEstado(turnoId, clienteUid, nuevoEstado) {
     try {
       await actualizarEstadoTurno(turnoId, nuevoEstado);
-      if (nuevoEstado === 'confirmado') await sumarPuntos(clienteUid, 30);
+      if (nuevoEstado === 'confirmado' && clienteUid) await sumarPuntos(clienteUid, 30);
       toast(nuevoEstado === 'confirmado' ? '✓ Turno confirmado — +30 pts al cliente' : '✗ Turno cancelado');
       fetchTurnos();
     } catch {
       toast('Error al actualizar el turno');
     }
+  }
+
+  async function handleToggleFijo(turnoId, esFijoActual) {
+    try {
+      const nuevoValor = !esFijoActual;
+      await actualizarTurnoFijo(turnoId, nuevoValor);
+      toast(nuevoValor ? '✓ Turno convertido en Turno Fijo semanal' : '✓ Se quitó la recurrencia fija del turno');
+      fetchTurnos();
+    } catch (err) {
+      console.error(err);
+      toast('Error al actualizar turno fijo');
+    }
+  }
+
+  function generarHorariosDiaAdmin(fechaStr) {
+    const diasSemanaMapa = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    if (!fechaStr || !configState?.dias) return [];
+    const dateObj = new Date(fechaStr + 'T12:00:00');
+    const diaNombre = diasSemanaMapa[dateObj.getDay()];
+    const diaConfig = configState.dias[diaNombre];
+    const apertura = diaConfig?.apertura || '07:00';
+    const cierre = diaConfig?.cierre || '23:00';
+    const [hA, mA] = apertura.split(':').map(Number);
+    const [hC, mC] = cierre.split(':').map(Number);
+    const servObj = servicios.find(s => s.id === nuevoFijo.servicio_id) || servicios[0];
+    const duracionMin = parseInt(servObj?.duracion, 10) || Number(configState.duracion) || 30;
+    const bloqueosHoy = (configState.bloqueos || []).filter(b => b.dia === diaNombre);
+    const slots = [];
+    let actualMin = hA * 60 + mA;
+    const limiteMin = hC * 60 + mC;
+    while (actualMin < limiteMin) {
+      const hh = String(Math.floor(actualMin / 60)).padStart(2, '0');
+      const mm = String(actualMin % 60).padStart(2, '0');
+      const horaStr = `${hh}:${mm}`;
+      const slotFin = actualMin + duracionMin;
+      const bloqueado = bloqueosHoy.some(b => {
+        if (!b.inicio || !b.fin) return false;
+        const [hbI, mbI] = b.inicio.split(':').map(Number);
+        const [hbF, mbF] = b.fin.split(':').map(Number);
+        const bI = hbI * 60 + mbI;
+        const bF = hbF * 60 + mbF;
+        return bF > bI && actualMin < bF && slotFin > bI;
+      });
+      if (!bloqueado) slots.push(horaStr);
+      actualMin += duracionMin;
+    }
+    return slots;
+  }
+
+  async function handleCrearTurnoFijo(e) {
+    e.preventDefault();
+    let clienteUid = null;
+    let clienteName = '';
+    let clienteEmail = '';
+
+    if (modoClienteFijo === 'registrado') {
+      const cli = clientes.find(c => c.uid === nuevoFijo.cliente_uid);
+      if (!cli) {
+        toast('Seleccioná un cliente de la lista');
+        return;
+      }
+      clienteUid = cli.uid;
+      clienteName = cli.name || cli.email;
+      clienteEmail = cli.email || 'sin-email@turnero.local';
+    } else {
+      if (!nuevoFijo.cliente_name.trim()) {
+        toast('Ingresá el nombre del cliente');
+        return;
+      }
+      clienteName = nuevoFijo.cliente_name.trim();
+      clienteEmail = nuevoFijo.cliente_email.trim() || 'manual@turnero.local';
+    }
+
+    if (!nuevoFijo.fecha || !nuevoFijo.hora) {
+      toast('Seleccioná fecha de inicio y horario');
+      return;
+    }
+
+    const servObj = servicios.find(s => s.id === nuevoFijo.servicio_id) || servicios[0] || { name: 'Corte Clásico', precio: 9000, duracion: 30 };
+
+    setCreandoFijo(true);
+    try {
+      await crearTurno({
+        cliente_uid: clienteUid,
+        cliente_email: clienteEmail,
+        cliente_name: clienteName,
+        fecha: nuevoFijo.fecha,
+        hora: nuevoFijo.hora.slice(0, 5),
+        servicio: servObj.name,
+        precio: servObj.precio ?? 0,
+        es_fijo: true,
+        duracion: parseInt(servObj.duracion, 10) || 30,
+        estado: 'confirmado',
+      });
+      toast(`✓ Turno fijo otorgado a ${clienteName}`);
+      setShowNuevoFijo(false);
+      setNuevoFijo(prev => ({ ...prev, cliente_uid: '', cliente_name: '', cliente_email: '' }));
+      fetchTurnos();
+    } catch (err) {
+      console.error(err);
+      toast('Error al otorgar el turno fijo');
+    } finally {
+      setCreandoFijo(false);
+    }
+  }
+
+  function abrirOtorgarFijoParaCliente(cliente) {
+    setModoClienteFijo('registrado');
+    setNuevoFijo(prev => ({
+      ...prev,
+      cliente_uid: cliente.uid,
+      servicio_id: prev.servicio_id || (servicios[0]?.id ?? ''),
+      fecha: prev.fecha || getFechaLocalISO(),
+    }));
+    setShowNuevoFijo(true);
+    setActiveTab('turnos-fijos');
   }
 
   function toast(msg) {
@@ -448,7 +588,30 @@ export default function Dashboard() {
                                       </span>
                                     </td>
                                     <td style={{ padding: '12px 0', textAlign: 'right' }}>
-                                      <div style={{ display: 'inline-flex', gap: '10px' }}>
+                                      <div style={{ display: 'inline-flex', gap: '10px', alignItems: 'center' }}>
+                                        {user?.role === 'admin' && (
+                                          <button
+                                            onClick={() => handleToggleFijo(turno.id, turno.es_fijo)}
+                                            style={{
+                                              color: turno.es_fijo ? '#0369a1' : '#64748b',
+                                              background: turno.es_fijo ? '#e0f2fe' : '#f1f5f9',
+                                              border: 'none',
+                                              borderRadius: '4px',
+                                              cursor: 'pointer',
+                                              padding: '4px 8px',
+                                              fontSize: '0.72rem',
+                                              fontWeight: '600',
+                                              display: 'inline-flex',
+                                              alignItems: 'center',
+                                              gap: '4px',
+                                              fontFamily: 'inherit'
+                                            }}
+                                            title={turno.es_fijo ? 'Quitar condición de Turno Fijo' : 'Otorgar Turno Fijo semanal'}
+                                          >
+                                            <RefreshCw size={12} />
+                                            {turno.es_fijo ? 'Quitar Fijo' : 'Hacer Fijo'}
+                                          </button>
+                                        )}
                                         {turno.estado !== 'confirmado' && (
                                           <button onClick={() => handleEstado(turno.id, turno.cliente_uid, 'confirmado')} style={{ color: 'var(--success)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} title="Confirmar"><Check size={16} /></button>
                                         )}
@@ -474,13 +637,214 @@ export default function Dashboard() {
           {/* ── TURNOS FIJOS ────────────────────────────────────────── */}
           {activeTab === 'turnos-fijos' && (
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>Turnos Fijos (Recurrentes)</h3>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{turnosFijos.length} fijos</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+                <div>
+                  <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '4px' }}>Turnos Fijos (Recurrentes)</h3>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{turnosFijos.length} {turnosFijos.length === 1 ? 'turno fijo activo' : 'turnos fijos activos'}</span>
+                </div>
+                <button
+                  className="btn-primary"
+                  style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  onClick={() => setShowNuevoFijo(v => !v)}
+                >
+                  {showNuevoFijo ? <><X size={15} /> Cerrar formulario</> : <><Plus size={15} /> Otorgar Turno Fijo</>}
+                </button>
               </div>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '16px' }}>
-                Estos turnos se reservan automáticamente todas las semanas en el mismo horario. Para eliminar un turno fijo recurrente, debes cancelarlo.
+                Estos turnos se reservan automáticamente todas las semanas en el mismo día y horario. Desde acá podés otorgar un nuevo turno fijo a un cliente, quitarle la recurrencia semanal o cancelarlo.
               </p>
+
+              {/* Formulario para otorgar un nuevo Turno Fijo */}
+              {showNuevoFijo && (
+                <form
+                  onSubmit={handleCrearTurnoFijo}
+                  style={{
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-lg)',
+                    padding: '20px',
+                    marginBottom: '24px',
+                    background: '#f8fafc',
+                  }}
+                >
+                  <h4 style={{ fontSize: '0.95rem', fontWeight: '700', marginBottom: '14px', color: '#111' }}>
+                    Otorgar Nuevo Turno Fijo Semanal
+                  </h4>
+
+                  <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setModoClienteFijo('registrado')}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: 'var(--radius-sm)',
+                        border: modoClienteFijo === 'registrado' ? '1px solid #111' : '1px solid var(--border-color)',
+                        background: modoClienteFijo === 'registrado' ? '#111' : '#fff',
+                        color: modoClienteFijo === 'registrado' ? '#fff' : '#111',
+                        fontSize: '0.82rem',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        fontFamily: 'inherit'
+                      }}
+                    >
+                      Cliente registrado
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setModoClienteFijo('manual')}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: 'var(--radius-sm)',
+                        border: modoClienteFijo === 'manual' ? '1px solid #111' : '1px solid var(--border-color)',
+                        background: modoClienteFijo === 'manual' ? '#111' : '#fff',
+                        color: modoClienteFijo === 'manual' ? '#fff' : '#111',
+                        fontSize: '0.82rem',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        fontFamily: 'inherit'
+                      }}
+                    >
+                      Ingresar nombre manual
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '14px' }}>
+                    {modoClienteFijo === 'registrado' ? (
+                      <div className="input-group" style={{ marginBottom: 0 }}>
+                        <label className="input-label">Cliente</label>
+                        <select
+                          className="input-field"
+                          value={nuevoFijo.cliente_uid}
+                          onChange={e => setNuevoFijo({ ...nuevoFijo, cliente_uid: e.target.value })}
+                          required
+                        >
+                          <option value="">— Seleccionar cliente —</option>
+                          {clientes.map(c => (
+                            <option key={c.uid} value={c.uid}>
+                              {c.name} ({c.email})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="input-group" style={{ marginBottom: 0 }}>
+                          <label className="input-label">Nombre del cliente</label>
+                          <input
+                            type="text"
+                            className="input-field"
+                            placeholder="Ej: Juan Pérez"
+                            value={nuevoFijo.cliente_name}
+                            onChange={e => setNuevoFijo({ ...nuevoFijo, cliente_name: e.target.value })}
+                            required
+                          />
+                        </div>
+                        <div className="input-group" style={{ marginBottom: 0 }}>
+                          <label className="input-label">Email (opcional)</label>
+                          <input
+                            type="email"
+                            className="input-field"
+                            placeholder="cliente@email.com"
+                            value={nuevoFijo.cliente_email}
+                            onChange={e => setNuevoFijo({ ...nuevoFijo, cliente_email: e.target.value })}
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    <div className="input-group" style={{ marginBottom: 0 }}>
+                      <label className="input-label">Servicio</label>
+                      <select
+                        className="input-field"
+                        value={nuevoFijo.servicio_id}
+                        onChange={e => setNuevoFijo({ ...nuevoFijo, servicio_id: e.target.value })}
+                      >
+                        {servicios.map(s => (
+                          <option key={s.id} value={s.id}>
+                            {s.name} (${s.precio?.toLocaleString('es-AR')} — {s.duracion} min)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="input-group" style={{ marginBottom: 0 }}>
+                      <label className="input-label">
+                        Fecha de inicio
+                        {nuevoFijo.fecha && (
+                          <span style={{ marginLeft: '6px', color: '#0369a1', fontWeight: '700', fontSize: '0.78rem' }}>
+                            (Cada {new Date(nuevoFijo.fecha + 'T12:00:00').toLocaleDateString('es-AR', { weekday: 'long' })})
+                          </span>
+                        )}
+                      </label>
+                      <input
+                        type="date"
+                        className="input-field"
+                        min={getFechaLocalISO()}
+                        value={nuevoFijo.fecha}
+                        onChange={e => setNuevoFijo({ ...nuevoFijo, fecha: e.target.value })}
+                        required
+                      />
+                    </div>
+
+                    <div className="input-group" style={{ marginBottom: 0 }}>
+                      <label className="input-label">Horario fijo</label>
+                      {(() => {
+                        const slotsDia = generarHorariosDiaAdmin(nuevoFijo.fecha);
+                        if (slotsDia.length > 0) {
+                          return (
+                            <select
+                              className="input-field"
+                              value={nuevoFijo.hora}
+                              onChange={e => setNuevoFijo({ ...nuevoFijo, hora: e.target.value })}
+                              required
+                            >
+                              {!slotsDia.includes(nuevoFijo.hora) && (
+                                <option value={nuevoFijo.hora}>{nuevoFijo.hora}</option>
+                              )}
+                              {slotsDia.map(h => {
+                                const ocupado = horasOcupadasFijo.includes(h);
+                                return (
+                                  <option key={h} value={h}>
+                                    {h} hs {ocupado ? '(Ocupado en esa fecha)' : '(Libre)'}
+                                  </option>
+                                );
+                              })}
+                            </select>
+                          );
+                        }
+                        return (
+                          <input
+                            type="time"
+                            className="input-field"
+                            value={nuevoFijo.hora}
+                            onChange={e => setNuevoFijo({ ...nuevoFijo, hora: e.target.value })}
+                            required
+                          />
+                        );
+                      })()}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px' }}>
+                    <button
+                      type="button"
+                      className="btn-outline"
+                      style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+                      onClick={() => setShowNuevoFijo(false)}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn-primary"
+                      disabled={creandoFijo}
+                      style={{ padding: '8px 18px', fontSize: '0.85rem' }}
+                    >
+                      {creandoFijo ? 'Guardando...' : 'Confirmar Turno Fijo'}
+                    </button>
+                  </div>
+                </form>
+              )}
+
               {loadingTurnos ? (
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Cargando turnos fijos...</p>
               ) : turnosFijos.length === 0 ? (
@@ -490,35 +854,77 @@ export default function Dashboard() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '560px' }}>
                     <thead>
                       <tr style={{ textAlign: 'left', color: 'var(--text-muted)', fontSize: '0.82rem', borderBottom: '1px solid var(--border-color)' }}>
-                        <th style={{ padding: '10px 0' }}>Día y Hora (Original)</th>
+                        <th style={{ padding: '10px 0' }}>Día y Hora Semanal</th>
                         <th style={{ padding: '10px 0' }}>Cliente</th>
                         <th style={{ padding: '10px 0' }}>Servicio</th>
                         <th style={{ padding: '10px 0', textAlign: 'right' }}>Acciones</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {turnosFijos.map(turno => (
-                        <tr key={turno.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                          <td style={{ padding: '14px 0', fontWeight: '600' }}>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <Calendar size={14} /> {turno.fecha.split('-').reverse().join('/')}
-                            </span>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                              <Clock size={14} /> {turno.hora}
-                            </span>
-                          </td>
-                          <td style={{ padding: '14px 0', fontSize: '0.95rem' }}>{turno.cliente_name}</td>
-                          <td style={{ padding: '14px 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                            <div>{turno.servicio}</div>
-                            <div style={{ fontSize: '0.75rem', color: '#888', marginTop: '2px' }}>
-                              Duración: {turno.duracion ?? 45} min
-                            </div>
-                          </td>
-                          <td style={{ padding: '14px 0', textAlign: 'right' }}>
-                            <button onClick={() => handleEstado(turno.id, turno.cliente_uid, 'cancelado')} style={{ color: 'var(--danger)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '4px', marginLeft: 'auto' }} title="Cancelar Turno Fijo Permanente"><X size={16} /> Cancelar Permanente</button>
-                          </td>
-                        </tr>
-                      ))}
+                      {turnosFijos.map(turno => {
+                        const diaSemana = new Date(turno.fecha + 'T12:00:00').toLocaleDateString('es-AR', { weekday: 'long' });
+                        const diaCap = diaSemana.charAt(0).toUpperCase() + diaSemana.slice(1);
+                        return (
+                          <tr key={turno.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                            <td style={{ padding: '14px 0', fontWeight: '600' }}>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#0369a1' }}>
+                                <RefreshCw size={14} /> Todos los {diaCap} — {turno.hora.slice(0, 5)} hs
+                              </span>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: '400' }}>
+                                <Calendar size={13} /> Desde el {turno.fecha.split('-').reverse().join('/')}
+                              </span>
+                            </td>
+                            <td style={{ padding: '14px 0', fontSize: '0.95rem', fontWeight: '500' }}>{turno.cliente_name}</td>
+                            <td style={{ padding: '14px 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                              <div>{turno.servicio}</div>
+                              <div style={{ fontSize: '0.75rem', color: '#888', marginTop: '2px' }}>
+                                Duración: {turno.duracion ?? 45} min
+                              </div>
+                            </td>
+                            <td style={{ padding: '14px 0', textAlign: 'right' }}>
+                              <div style={{ display: 'inline-flex', gap: '10px', alignItems: 'center', justifyContent: 'flex-end' }}>
+                                <button
+                                  onClick={() => handleToggleFijo(turno.id, true)}
+                                  style={{
+                                    color: '#475569',
+                                    background: '#f1f5f9',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    padding: '5px 10px',
+                                    fontSize: '0.78rem',
+                                    fontWeight: '600',
+                                    cursor: 'pointer',
+                                    fontFamily: 'inherit'
+                                  }}
+                                  title="Quita la repetición semanal pero mantiene el turno único"
+                                >
+                                  Quitar Fijo
+                                </button>
+                                <button
+                                  onClick={() => handleEstado(turno.id, turno.cliente_uid, 'cancelado')}
+                                  style={{
+                                    color: 'var(--danger)',
+                                    background: '#fee2e2',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    padding: '5px 10px',
+                                    fontSize: '0.78rem',
+                                    fontWeight: '600',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    cursor: 'pointer',
+                                    fontFamily: 'inherit'
+                                  }}
+                                  title="Cancelar Turno Fijo Permanente"
+                                >
+                                  <X size={14} /> Cancelar Fijo
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -532,61 +938,124 @@ export default function Dashboard() {
               <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '16px' }}>Clientes registrados</h3>
               {loadingCli ? <p style={{ color: 'var(--text-muted)' }}>Cargando...</p> : (
                 <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '600px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '720px' }}>
                     <thead>
                       <tr style={{ textAlign: 'left', color: 'var(--text-muted)', fontSize: '0.82rem', borderBottom: '1px solid var(--border-color)' }}>
                         <th style={{ padding: '10px 0' }}>Nombre</th>
                         <th style={{ padding: '10px 0' }}>Email</th>
                         <th style={{ padding: '10px 0' }}>Rol</th>
+                        <th style={{ padding: '10px 0', textAlign: 'center' }}>Turno Fijo</th>
                         <th style={{ padding: '10px 0', textAlign: 'center' }}>Permisos (Horarios)</th>
                         <th style={{ padding: '10px 0', textAlign: 'right' }}>Puntos</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {clientes.map((c, i) => (
-                        <tr key={i} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                          <td style={{ padding: '14px 0', fontWeight: '500' }}>{c.name}</td>
-                          <td style={{ padding: '14px 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>{c.email}</td>
-                          <td style={{ padding: '14px 0', fontSize: '0.9rem' }}>
-                            <span style={{
-                              padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '600',
-                              background: c.role === 'admin' ? '#f3e8ff' : '#f3f4f6',
-                              color: c.role === 'admin' ? '#7e22ce' : '#374151'
-                            }}>
-                              {c.role === 'admin' ? 'ADMIN' : 'CLIENTE'}
-                            </span>
-                          </td>
-                          <td style={{ padding: '14px 0', textAlign: 'center' }}>
-                            {c.role === 'admin' ? (
-                              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                                <ShieldCheck size={14} color="var(--success)" /> Administrador total
+                      {clientes.map((c, i) => {
+                        const fijosDelCliente = turnosFijos.filter(tf => tf.cliente_uid === c.uid || (tf.cliente_email && tf.cliente_email === c.email));
+                        return (
+                          <tr key={i} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                            <td style={{ padding: '14px 0', fontWeight: '500' }}>{c.name}</td>
+                            <td style={{ padding: '14px 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>{c.email}</td>
+                            <td style={{ padding: '14px 0', fontSize: '0.9rem' }}>
+                              <span style={{
+                                padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '600',
+                                background: c.role === 'admin' ? '#f3e8ff' : '#f3f4f6',
+                                color: c.role === 'admin' ? '#7e22ce' : '#374151'
+                              }}>
+                                {c.role === 'admin' ? 'ADMIN' : 'CLIENTE'}
                               </span>
-                            ) : (
-                              <button
-                                onClick={() => handleTogglePermiso(c.uid, c.permiso_horarios)}
-                                style={{
-                                  padding: '4px 10px',
-                                  borderRadius: 'var(--radius-sm)',
-                                  fontSize: '0.8rem',
-                                  fontWeight: '600',
-                                  cursor: 'pointer',
-                                  border: 'none',
-                                  background: c.permiso_horarios ? '#dcfce7' : '#fee2e2',
-                                  color: c.permiso_horarios ? '#15803d' : '#b91c1c',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                  fontFamily: 'inherit'
-                                }}
-                              >
-                                {c.permiso_horarios ? <ShieldCheck size={13} /> : <ShieldAlert size={13} />}
-                                {c.permiso_horarios ? 'Con Permiso' : 'Sin Permiso'}
-                              </button>
-                            )}
-                          </td>
-                          <td style={{ padding: '14px 0', textAlign: 'right', fontWeight: '700' }}>★ {c.puntos ?? 0}</td>
-                        </tr>
-                      ))}
+                            </td>
+                            <td style={{ padding: '14px 0', textAlign: 'center' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                                {fijosDelCliente.map(tf => {
+                                  const diaCorto = new Date(tf.fecha + 'T12:00:00').toLocaleDateString('es-AR', { weekday: 'short' });
+                                  return (
+                                    <span
+                                      key={tf.id}
+                                      style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        background: '#e0f2fe',
+                                        color: '#0369a1',
+                                        padding: '3px 8px',
+                                        borderRadius: '4px',
+                                        fontSize: '0.75rem',
+                                        fontWeight: '600'
+                                      }}
+                                    >
+                                      {diaCorto.toUpperCase()} {tf.hora.slice(0, 5)}
+                                      <button
+                                        onClick={() => handleEstado(tf.id, tf.cliente_uid, 'cancelado')}
+                                        style={{
+                                          border: 'none',
+                                          background: 'none',
+                                          color: '#dc2626',
+                                          cursor: 'pointer',
+                                          padding: 0,
+                                          display: 'inline-flex',
+                                          alignItems: 'center'
+                                        }}
+                                        title="Cancelar este Turno Fijo"
+                                      >
+                                        <X size={13} />
+                                      </button>
+                                    </span>
+                                  );
+                                })}
+                                <button
+                                  onClick={() => abrirOtorgarFijoParaCliente(c)}
+                                  style={{
+                                    padding: '4px 10px',
+                                    borderRadius: 'var(--radius-sm)',
+                                    fontSize: '0.76rem',
+                                    fontWeight: '600',
+                                    cursor: 'pointer',
+                                    border: '1px solid var(--border-color)',
+                                    background: '#fff',
+                                    color: '#111',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    fontFamily: 'inherit'
+                                  }}
+                                >
+                                  <Plus size={12} /> Otorgar Fijo
+                                </button>
+                              </div>
+                            </td>
+                            <td style={{ padding: '14px 0', textAlign: 'center' }}>
+                              {c.role === 'admin' ? (
+                                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                                  <ShieldCheck size={14} color="var(--success)" /> Administrador total
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => handleTogglePermiso(c.uid, c.permiso_horarios)}
+                                  style={{
+                                    padding: '4px 10px',
+                                    borderRadius: 'var(--radius-sm)',
+                                    fontSize: '0.8rem',
+                                    fontWeight: '600',
+                                    cursor: 'pointer',
+                                    border: 'none',
+                                    background: c.permiso_horarios ? '#dcfce7' : '#fee2e2',
+                                    color: c.permiso_horarios ? '#15803d' : '#b91c1c',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    fontFamily: 'inherit'
+                                  }}
+                                >
+                                  {c.permiso_horarios ? <ShieldCheck size={13} /> : <ShieldAlert size={13} />}
+                                  {c.permiso_horarios ? 'Con Permiso' : 'Sin Permiso'}
+                                </button>
+                              )}
+                            </td>
+                            <td style={{ padding: '14px 0', textAlign: 'right', fontWeight: '700' }}>★ {c.puntos ?? 0}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -1010,15 +1479,15 @@ function getLunes(fecha) {
   const day = d.getDay();
   const diff = d.getDate() - day + (day === 0 ? -6 : 1);
   d.setDate(diff);
-  return d.toISOString().split('T')[0];
+  return getFechaLocalISO(d);
 }
 
 function formatFechaCabecera(fechaStr) {
-  const hoyStr = new Date().toISOString().split('T')[0];
+  const hoyStr = getFechaLocalISO();
   
   const mananaDate = new Date();
   mananaDate.setDate(mananaDate.getDate() + 1);
-  const mananaStr = mananaDate.toISOString().split('T')[0];
+  const mananaStr = getFechaLocalISO(mananaDate);
   
   const dateObj = new Date(fechaStr + 'T12:00:00');
   const formattedDate = dateObj.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });

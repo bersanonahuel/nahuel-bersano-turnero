@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { crearTurno, getHorasOcupadas, getHorariosConfig } from '../lib/turnos';
+import { crearTurno, getHorasOcupadas, getHorariosConfig, getFechaLocalISO } from '../lib/turnos';
 import { getServicios } from '../lib/servicios';
 // EmailJS ya no se usa, redirigimos a WhatsApp
 
@@ -22,10 +22,17 @@ export default function Booking() {
   const [confirmado, setConfirmado] = useState(false);
   const [esFijo, setEsFijo]         = useState(false);
   const [config, setConfig]         = useState({
-    apertura: '10:00',
-    cierre: '18:00',
     duracion: 45,
-    dias: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+    dias: {
+      "Lun": { activo: true, apertura: "10:00", cierre: "18:00" },
+      "Mar": { activo: true, apertura: "10:00", cierre: "18:00" },
+      "Mié": { activo: true, apertura: "10:00", cierre: "18:00" },
+      "Jue": { activo: true, apertura: "10:00", cierre: "18:00" },
+      "Vie": { activo: true, apertura: "10:00", cierre: "18:00" },
+      "Sáb": { activo: true, apertura: "10:00", cierre: "18:00" },
+      "Dom": { activo: false, apertura: "10:00", cierre: "18:00" }
+    },
+    bloqueos: []
   });
 
   // Cargar configuración y servicios al iniciar
@@ -42,8 +49,8 @@ export default function Booking() {
       .catch(err => console.error('Error al cargar servicios:', err));
   }, []);
 
-  // Hoy como mínimo para el datepicker
-  const hoy = new Date().toISOString().split('T')[0];
+  // Hoy como mínimo para el datepicker (en hora local de Argentina, no UTC)
+  const hoy = getFechaLocalISO();
 
   // ── Generar slots de horarios dinámicos ──────────────────────────────
   const diasSemanaMapa = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -65,38 +72,34 @@ export default function Booking() {
     const [hCierre, mCierre] = cierre.split(':').map(Number);
     
     // Parsear duración del servicio (ej. "45 min" -> 45)
-    let duracionMinutos = config.duracion || 45;
+    let duracionMinutos = Number(config.duracion) || 45;
     if (servicio && servicio.duracion) {
-      duracionMinutos = parseInt(servicio.duracion, 10);
+      duracionMinutos = parseInt(servicio.duracion, 10) || duracionMinutos;
     }
     
-    let actual = new Date();
-    actual.setHours(hApertura, mApertura, 0, 0);
-    
-    const limite = new Date();
-    limite.setHours(hCierre, mCierre, 0, 0);
+    let actualMin = hApertura * 60 + mApertura;
+    const limiteMin = hCierre * 60 + mCierre;
     
     // Obtener bloqueos para este día de la semana
     const bloqueos = config.bloqueos || [];
     const bloqueosHoy = bloqueos.filter(b => b.dia === diaNombre);
     
-    while (actual < limite) {
-      const horaStr = actual.toTimeString().slice(0, 5); // "HH:MM"
+    while (actualMin < limiteMin) {
+      const hh = String(Math.floor(actualMin / 60)).padStart(2, '0');
+      const mm = String(actualMin % 60).padStart(2, '0');
+      const horaStr = `${hh}:${mm}`;
       
-      const slotInicio = new Date(actual);
-      const slotFin = new Date(actual);
-      slotFin.setMinutes(slotFin.getMinutes() + duracionMinutos);
+      const slotInicio = actualMin;
+      const slotFin = actualMin + duracionMinutos;
       
       const estaBloqueado = bloqueosHoy.some(b => {
         if (!b.inicio || !b.fin) return false;
         const [hBInicio, mBInicio] = b.inicio.split(':').map(Number);
         const [hBFin, mBFin] = b.fin.split(':').map(Number);
         
-        const bInicio = new Date(actual);
-        bInicio.setHours(hBInicio, mBInicio, 0, 0);
-        
-        const bFin = new Date(actual);
-        bFin.setHours(hBFin, mBFin, 0, 0);
+        const bInicio = hBInicio * 60 + mBInicio;
+        const bFin = hBFin * 60 + mBFin;
+        if (bFin <= bInicio) return false;
         
         return slotInicio < bFin && slotFin > bInicio;
       });
@@ -104,7 +107,7 @@ export default function Booking() {
       if (!estaBloqueado && !slots.includes(horaStr)) {
         slots.push(horaStr);
       }
-      actual.setMinutes(actual.getMinutes() + duracionMinutos);
+      actualMin += duracionMinutos;
     }
     
     return slots;
@@ -140,7 +143,7 @@ export default function Booking() {
       .then(setOcupadas)
       .catch(() => setOcupadas([]))
       .finally(() => setLoadingH(false));
-  }, [selectedDate]);
+  }, [selectedDate, config]);
 
   // El login rápido ahora se pide en el paso 3 (Confirmar) para no ser invasivo.
 
@@ -285,7 +288,7 @@ export default function Booking() {
               <div style={{ marginTop: '8px' }}>
                 <label className="input-label" style={{ marginBottom: '12px', display: 'block' }}>
                   <Clock size={15} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '6px' }} />
-                  Horarios disponibles ({servicio.duracion})
+                  Horarios disponibles ({servicio.duracion} min)
                 </label>
                 {loadingHoras ? (
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Cargando horarios...</p>
@@ -294,7 +297,8 @@ export default function Booking() {
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
                       {(() => {
                         const ahora = new Date();
-                        const esHoy = selectedDate === hoy;
+                        const ahoraMin = ahora.getHours() * 60 + ahora.getMinutes();
+                        const esHoy = selectedDate === getFechaLocalISO(ahora);
                         
                         const horariosLibres = generarHorarios().filter(hora => {
                           // Si ya está ocupada, la descartamos
@@ -303,9 +307,7 @@ export default function Booking() {
                           // Si es hoy, filtramos los horarios que ya pasaron
                           if (esHoy) {
                             const [h, m] = hora.split(':').map(Number);
-                            const horaTurno = new Date();
-                            horaTurno.setHours(h, m, 0, 0);
-                            if (horaTurno <= ahora) return false;
+                            if (h * 60 + m <= ahoraMin) return false;
                           }
                           
                           return true;

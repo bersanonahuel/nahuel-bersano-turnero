@@ -13,7 +13,17 @@ import { supabase } from './supabase';
  * @param {number} turno.precio        - Precio en pesos
  * @returns {Object} El turno creado
  */
-export async function crearTurno({ cliente_uid, cliente_email, cliente_name, fecha, hora, servicio, precio, es_fijo = false, duracion = 45 }) {
+/**
+ * Devuelve la fecha en formato YYYY-MM-DD usando la hora local (evita el desfasaje UTC después de las 21:00 en Argentina).
+ */
+export function getFechaLocalISO(d = new Date()) {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export async function crearTurno({ cliente_uid, cliente_email, cliente_name, fecha, hora, servicio, precio, es_fijo = false, duracion = 45, estado = 'pendiente' }) {
   const { data, error } = await supabase
     .from('turnos')
     .insert({
@@ -26,7 +36,7 @@ export async function crearTurno({ cliente_uid, cliente_email, cliente_name, fec
       precio,
       es_fijo,
       duracion,
-      estado: 'pendiente', // pendiente | confirmado | cancelado
+      estado, // pendiente | confirmado | cancelado
     })
     .select()
     .single();
@@ -69,8 +79,8 @@ export async function getTodosTurnos() {
  * Incluye turnos normales futuros y calcula la próxima ocurrencia de los turnos fijos.
  */
 export async function getProximosTurnos() {
-  const hoyStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-  const hoyDate = new Date(hoyStr + 'T00:00:00');
+  const hoyStr = getFechaLocalISO(); // YYYY-MM-DD en hora local
+  const hoyDate = new Date(hoyStr + 'T12:00:00');
 
   // 1. Obtener turnos normales desde hoy
   const { data: normales, error: errNorm } = await supabase
@@ -97,7 +107,7 @@ export async function getProximosTurnos() {
   for (const fijo of fijos) {
     if (!resultIds.has(fijo.id)) {
       // Si la fecha original es en el pasado, calcular el próximo día de la semana que coincide
-      const originalDate = new Date(fijo.fecha + 'T00:00:00');
+      const originalDate = new Date(fijo.fecha + 'T12:00:00');
       if (originalDate < hoyDate) {
         const dayOfWeek = originalDate.getDay();
         const nextDate = new Date(hoyDate);
@@ -109,9 +119,8 @@ export async function getProximosTurnos() {
         // Crear una copia para mostrar en "Próximos Turnos" con la fecha actualizada
         result.push({
           ...fijo,
-          fecha: nextDate.toISOString().split('T')[0],
-          // Opcional: mostrar siempre como pendiente para la nueva semana, 
-          // aunque el original esté confirmado? Lo dejamos como está para no perder el original.
+          fecha_original: fijo.fecha,
+          fecha: getFechaLocalISO(nextDate),
         });
       } else {
         result.push(fijo);
@@ -191,6 +200,20 @@ export async function actualizarEstadoTurno(id, estado) {
   const { error } = await supabase
     .from('turnos')
     .update({ estado })
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+/**
+ * Otorga o quita la condición de turno fijo (recurrente semanal) a un turno existente.
+ * @param {string} id - ID del turno
+ * @param {boolean} esFijo - true para hacerlo fijo, false para dejarlo como turno único
+ */
+export async function actualizarTurnoFijo(id, esFijo) {
+  const { error } = await supabase
+    .from('turnos')
+    .update({ es_fijo: esFijo })
     .eq('id', id);
 
   if (error) throw error;
