@@ -60,11 +60,13 @@ export default function Dashboard() {
     fetchTurnos();
     fetchStats();
     
-    // Solo admins pueden ver catálogo de productos, servicios y clientes
+    // Cargar clientes y servicios para poder gestionar turnos fijos
+    fetchClientes();
+    fetchServicios();
+
+    // Solo admins pueden ver catálogo de productos
     if (user?.role === 'admin') {
-      fetchClientes();
       fetchProducts();
-      fetchServicios();
     }
     
     // Cargar config de horarios
@@ -424,7 +426,7 @@ export default function Dashboard() {
 
   const TABS = [
     { id: 'turnos',         label: 'Próximos Turnos',    icon: <Clock size={15} /> },
-    user?.role === 'admin' && { id: 'turnos-fijos',   label: 'Turnos Fijos',      icon: <RefreshCw size={15} /> },
+    { id: 'turnos-fijos',   label: 'Turnos Fijos',      icon: <RefreshCw size={15} /> },
     user?.role === 'admin' && { id: 'clientes',       label: 'Clientes',          icon: <Users size={15} /> },
     user?.role === 'admin' && { id: 'puntos',         label: 'Puntos',             icon: <Star size={15} /> },
     user?.role === 'admin' && { id: 'productos',      label: 'Productos',          icon: <Package size={15} /> },
@@ -589,29 +591,27 @@ export default function Dashboard() {
                                     </td>
                                     <td style={{ padding: '12px 0', textAlign: 'right' }}>
                                       <div style={{ display: 'inline-flex', gap: '10px', alignItems: 'center' }}>
-                                        {user?.role === 'admin' && (
-                                          <button
-                                            onClick={() => handleToggleFijo(turno.id, turno.es_fijo)}
-                                            style={{
-                                              color: turno.es_fijo ? '#0369a1' : '#64748b',
-                                              background: turno.es_fijo ? '#e0f2fe' : '#f1f5f9',
-                                              border: 'none',
-                                              borderRadius: '4px',
-                                              cursor: 'pointer',
-                                              padding: '4px 8px',
-                                              fontSize: '0.72rem',
-                                              fontWeight: '600',
-                                              display: 'inline-flex',
-                                              alignItems: 'center',
-                                              gap: '4px',
-                                              fontFamily: 'inherit'
-                                            }}
-                                            title={turno.es_fijo ? 'Quitar condición de Turno Fijo' : 'Otorgar Turno Fijo semanal'}
-                                          >
-                                            <RefreshCw size={12} />
-                                            {turno.es_fijo ? 'Quitar Fijo' : 'Hacer Fijo'}
-                                          </button>
-                                        )}
+                                        <button
+                                          onClick={() => handleToggleFijo(turno.id, turno.es_fijo)}
+                                          style={{
+                                            color: turno.es_fijo ? '#0369a1' : '#64748b',
+                                            background: turno.es_fijo ? '#e0f2fe' : '#f1f5f9',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            cursor: 'pointer',
+                                            padding: '4px 8px',
+                                            fontSize: '0.72rem',
+                                            fontWeight: '600',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            fontFamily: 'inherit'
+                                          }}
+                                          title={turno.es_fijo ? 'Quitar condición de Turno Fijo' : 'Otorgar Turno Fijo semanal'}
+                                        >
+                                          <RefreshCw size={12} />
+                                          {turno.es_fijo ? 'Quitar Fijo' : 'Hacer Fijo'}
+                                        </button>
                                         {turno.estado !== 'confirmado' && (
                                           <button onClick={() => handleEstado(turno.id, turno.cliente_uid, 'confirmado')} style={{ color: 'var(--success)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} title="Confirmar"><Check size={16} /></button>
                                         )}
